@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>फार्म ट्रैकर</title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <!-- Include InfluxDB Client JavaScript library -->
+    <script src="https://unpkg.com/@influxdata/influxdb-client@1.33.2/dist/index.browser.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -520,7 +521,7 @@
     </div>
 
     <script>
-        // Translations object
+        // Translations object (moved to top to avoid ReferenceError)
         const translations = {
             hindi: {
                 title: 'फार्म ट्रैकर',
@@ -651,6 +652,12 @@
         let currentAudio = null;
         let currentLanguage = 'hindi';
 
+        // InfluxDB configuration
+        const INFLUXDB_URL = 'https://us-east-1-1.aws.cloud2.influxdata.com';
+        const INFLUXDB_TOKEN = 'nZ49M1MTGbHtRCrc2OJhx-kVIBWuwvereT-o1mcq2COz3urUNuUuIIMjysObK8oOEHn8352w7LKFyrX8PQpdsA==';
+        const INFLUXDB_ORG = 'Agri';
+        const INFLUXDB_BUCKET = 'smart_agri';
+
         // Text-to-speech function (Hindi only)
         function speakQuestion(text, emoji) {
             if (currentAudio) {
@@ -665,6 +672,7 @@
                 utterance.volume = 1;
                 utterance.lang = 'hi-IN';
 
+                // Try to use a Hindi voice
                 const voices = speechSynthesis.getVoices();
                 const hindiVoice = voices.find(voice => voice.lang === 'hi-IN');
                 if (hindiVoice) {
@@ -675,6 +683,7 @@
 
                 speechSynthesis.speak(utterance);
 
+                // Visual feedback
                 const audioBtn = document.querySelector(`[data-audio="${text}"]`);
                 if (audioBtn) {
                     audioBtn.classList.add('playing');
@@ -943,12 +952,15 @@
             const questions = getCurrentQuestions();
             const question = questions[questionIndex];
 
+            // Update button states
             const buttons = buttonElement.parentElement.querySelectorAll('.option-btn');
             buttons.forEach(btn => btn.classList.remove('selected'));
             buttonElement.classList.add('selected');
 
+            // Store response
             saveResponse(questionIndex, 'option', option);
 
+            // Handle followup
             const followup = document.getElementById(`followup_${questionIndex}`);
             if (followup) {
                 const shouldShow = (question.followup === 'yes' && option === (currentLanguage === 'hindi' ? 'हाँ' : currentLanguage === 'kannada' ? 'ಹೌದು' : 'Yes')) ||
@@ -962,6 +974,7 @@
                 }
             }
 
+            // Handle photo section for followup
             if (question.photo === 'followup') {
                 const photoSection = document.getElementById(`photoSection_${questionIndex}`);
                 if (photoSection) {
@@ -1000,11 +1013,12 @@
             document.getElementById('progressFill').style.width = progressPercent + '%';
         }
 
-        function saveProgress() {
+        async function saveProgress() {
             const questions = getCurrentQuestions();
             const today = new Date().toISOString().split('T')[0];
             const questionType = translations.english.subtitle[Object.keys(translations.english.subtitle).find(key => translations.english.subtitle[key] === getQuestionType())];
 
+            // Compile all responses in English
             const compiledData = {
                 date: today,
                 type: questionType,
@@ -1030,50 +1044,63 @@
                 }
             });
 
-            fetch('/api/proxy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(compiledData)
-            })
-            .then(response => response.json())
-            .then(result => {
-                console.log('Server response:', result);
-                if (result.status === 'success') {
-                    const successMsg = document.getElementById('successMessage');
-                    successMsg.classList.add('show');
-                    setTimeout(() => {
-                        successMsg.classList.remove('show');
-                    }, 3000);
+            // Send data to InfluxDB
+            try {
+                const { InfluxDB } = window.influxdb;
+                const client = new InfluxDB({ url: INFLUXDB_URL, token: INFLUXDB_TOKEN });
+                const writeApi = client.getWriteApi(INFLUXDB_ORG, INFLUXDB_BUCKET, 'ms');
 
-                    const saveBtn = document.getElementById('saveBtn');
-                    saveBtn.disabled = true;
-                    saveBtn.textContent = translations[currentLanguage].savedMessage;
-                    setTimeout(() => {
-                        saveBtn.disabled = false;
-                        saveBtn.textContent = translations[currentLanguage].saveButton;
-                    }, 2000);
+                const points = [];
+                Object.keys(compiledData.responses).forEach((question, index) => {
+                    const response = compiledData.responses[question];
+                    const point = new window.influxdb.Point('Vimal_Task')
+                        .tag('date', compiledData.date)
+                        .tag('type', compiledData.type)
+                        .tag('language', compiledData.language)
+                        .tag('question_id', `q${index + 1}`)
+                        .stringField('question', question)
+                        .stringField('answer', response.answer)
+                        .stringField('followup_text', response.followupText)
+                        .stringField('photos', JSON.stringify(response.photos.map(photo => ({ name: photo.name }))))
+                        .timestamp(new Date(response.timestamp));
+                    points.push(point);
+                });
 
-                    const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
-                    savedEntries.push(compiledData);
-                    localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
-                } else {
-                    console.error('Error saving to Google Sheets:', result.message);
-                    alert('Failed to save data: ' + result.message);
-                }
-            })
-            .catch(error => {
-                console.error('Fetch error:', error);
-                alert('Error connecting to server: ' + error.message);
-            });
+                writeApi.write(points);
+                await writeApi.close();
+
+                // Show success message
+                const successMsg = document.getElementById('successMessage');
+                successMsg.classList.add('show');
+                setTimeout(() => {
+                    successMsg.classList.remove('show');
+                }, 3000);
+
+                const saveBtn = document.getElementById('saveBtn');
+                saveBtn.disabled = true;
+                saveBtn.textContent = translations[currentLanguage].savedMessage;
+                setTimeout(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = translations[currentLanguage].saveButton;
+                }, 2000);
+
+                // Also save to localStorage for demo
+                const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
+                savedEntries.push(compiledData);
+                localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
+            } catch (error) {
+                console.error('Error saving to InfluxDB:', error);
+                alert('Error saving data to InfluxDB: ' + error.message);
+            }
         }
 
+        // Initialize the app
         function init() {
             updateDateInfo();
             initSpeechRecognition();
             renderAllQuestions();
 
+            // Load voices for text-to-speech
             if ('speechSynthesis' in window) {
                 speechSynthesis.getVoices();
                 window.speechSynthesis.onvoiceschanged = function() {
@@ -1082,6 +1109,7 @@
             }
         }
 
+        // Start the app
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
