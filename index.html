@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>फार्म ट्रैकर</title>
-    <!-- Include InfluxDB Client JavaScript library -->
-    <script src="https://unpkg.com/@influxdata/influxdb-client@1.33.2/dist/index.browser.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1044,50 +1042,55 @@
                 }
             });
 
+            // Convert data to InfluxDB Line Protocol
+            const lines = [];
+            Object.keys(compiledData.responses).forEach((question, index) => {
+                const response = compiledData.responses[question];
+                // Escape spaces and special characters in tags and fields
+                const escapedQuestion = question.replace(/,/g, '\\,').replace(/=/g, '\\=').replace(/ /g, '\\ ');
+                const escapedAnswer = response.answer.replace(/,/g, '\\,').replace(/=/g, '\\=').replace(/ /g, '\\ ');
+                const escapedFollowupText = response.followupText.replace(/,/g, '\\,').replace(/=/g, '\\=').replace(/ /g, '\\ ');
+                const escapedPhotos = JSON.stringify(response.photos.map(photo => ({ name: photo.name }))).replace(/,/g, '\\,').replace(/=/g, '\\=').replace(/ /g, '\\ ');
+
+                const line = `Vimal_Task,date=${compiledData.date},type=${compiledData.type},language=${compiledData.language},question_id=q${index + 1} question="${escapedQuestion}",answer="${escapedAnswer}",followup_text="${escapedFollowupText}",photos="${escapedPhotos}" ${new Date(response.timestamp).getTime() * 1000000}`;
+                lines.push(line);
+            });
+
             // Send data to InfluxDB
             try {
-                const { InfluxDB } = window.influxdb;
-                const client = new InfluxDB({ url: INFLUXDB_URL, token: INFLUXDB_TOKEN });
-                const writeApi = client.getWriteApi(INFLUXDB_ORG, INFLUXDB_BUCKET, 'ms');
-
-                const points = [];
-                Object.keys(compiledData.responses).forEach((question, index) => {
-                    const response = compiledData.responses[question];
-                    const point = new window.influxdb.Point('Vimal_Task')
-                        .tag('date', compiledData.date)
-                        .tag('type', compiledData.type)
-                        .tag('language', compiledData.language)
-                        .tag('question_id', `q${index + 1}`)
-                        .stringField('question', question)
-                        .stringField('answer', response.answer)
-                        .stringField('followup_text', response.followupText)
-                        .stringField('photos', JSON.stringify(response.photos.map(photo => ({ name: photo.name }))))
-                        .timestamp(new Date(response.timestamp));
-                    points.push(point);
+                const response = await fetch(`${INFLUXDB_URL}/api/v2/write?org=${INFLUXDB_ORG}&bucket=${INFLUXDB_BUCKET}&precision=ns`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Token ${INFLUXDB_TOKEN}`,
+                        'Content-Type': 'text/plain'
+                    },
+                    body: lines.join('\n')
                 });
 
-                writeApi.write(points);
-                await writeApi.close();
+                if (response.ok) {
+                    // Show success message
+                    const successMsg = document.getElementById('successMessage');
+                    successMsg.classList.add('show');
+                    setTimeout(() => {
+                        successMsg.classList.remove('show');
+                    }, 3000);
 
-                // Show success message
-                const successMsg = document.getElementById('successMessage');
-                successMsg.classList.add('show');
-                setTimeout(() => {
-                    successMsg.classList.remove('show');
-                }, 3000);
+                    const saveBtn = document.getElementById('saveBtn');
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = translations[currentLanguage].savedMessage;
+                    setTimeout(() => {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = translations[currentLanguage].saveButton;
+                    }, 2000);
 
-                const saveBtn = document.getElementById('saveBtn');
-                saveBtn.disabled = true;
-                saveBtn.textContent = translations[currentLanguage].savedMessage;
-                setTimeout(() => {
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = translations[currentLanguage].saveButton;
-                }, 2000);
-
-                // Also save to localStorage for demo
-                const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
-                savedEntries.push(compiledData);
-                localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
+                    // Also save to localStorage for demo
+                    const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
+                    savedEntries.push(compiledData);
+                    localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`InfluxDB write failed: ${response.status} ${errorText}`);
+                }
             } catch (error) {
                 console.error('Error saving to InfluxDB:', error);
                 alert('Error saving data to InfluxDB: ' + error.message);
