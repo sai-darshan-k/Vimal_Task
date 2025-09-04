@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>फार्म ट्रैकर</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -519,7 +520,7 @@
     </div>
 
     <script>
-        // Translations object (moved to top to avoid ReferenceError)
+        // Translations object
         const translations = {
             hindi: {
                 title: 'फार्म ट्रैकर',
@@ -664,7 +665,6 @@
                 utterance.volume = 1;
                 utterance.lang = 'hi-IN';
 
-                // Try to use a Hindi voice
                 const voices = speechSynthesis.getVoices();
                 const hindiVoice = voices.find(voice => voice.lang === 'hi-IN');
                 if (hindiVoice) {
@@ -675,7 +675,6 @@
 
                 speechSynthesis.speak(utterance);
 
-                // Visual feedback
                 const audioBtn = document.querySelector(`[data-audio="${text}"]`);
                 if (audioBtn) {
                     audioBtn.classList.add('playing');
@@ -944,15 +943,12 @@
             const questions = getCurrentQuestions();
             const question = questions[questionIndex];
 
-            // Update button states
             const buttons = buttonElement.parentElement.querySelectorAll('.option-btn');
             buttons.forEach(btn => btn.classList.remove('selected'));
             buttonElement.classList.add('selected');
 
-            // Store response
             saveResponse(questionIndex, 'option', option);
 
-            // Handle followup
             const followup = document.getElementById(`followup_${questionIndex}`);
             if (followup) {
                 const shouldShow = (question.followup === 'yes' && option === (currentLanguage === 'hindi' ? 'हाँ' : currentLanguage === 'kannada' ? 'ಹೌದು' : 'Yes')) ||
@@ -966,7 +962,6 @@
                 }
             }
 
-            // Handle photo section for followup
             if (question.photo === 'followup') {
                 const photoSection = document.getElementById(`photoSection_${questionIndex}`);
                 if (photoSection) {
@@ -1010,7 +1005,6 @@
             const today = new Date().toISOString().split('T')[0];
             const questionType = translations.english.subtitle[Object.keys(translations.english.subtitle).find(key => translations.english.subtitle[key] === getQuestionType())];
 
-            // Compile all responses in English
             const compiledData = {
                 date: today,
                 type: questionType,
@@ -1036,8 +1030,7 @@
                 }
             });
 
-            // Send data to Google Apps Script
-            fetch('https://script.google.com/macros/s/AKfycbzHaX38gtz0vqU3vBzwcXpc12cPNjn84ofJbZP-DJyLNQeQ4GBo4_TlnBdMf6kb25-3/exec', {
+            fetch('/api/proxy', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1062,7 +1055,6 @@
                         saveBtn.textContent = translations[currentLanguage].saveButton;
                     }, 2000);
 
-                    // Also save to localStorage for demo
                     const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
                     savedEntries.push(compiledData);
                     localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
@@ -1077,13 +1069,11 @@
             });
         }
 
-        // Initialize the app
         function init() {
             updateDateInfo();
             initSpeechRecognition();
             renderAllQuestions();
 
-            // Load voices for text-to-speech
             if ('speechSynthesis' in window) {
                 speechSynthesis.getVoices();
                 window.speechSynthesis.onvoiceschanged = function() {
@@ -1092,7 +1082,6 @@
             }
         }
 
-        // Start the app
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
