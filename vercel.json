@@ -1,0 +1,14 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/proxy",
+      "destination": "/api/proxy.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
+}
