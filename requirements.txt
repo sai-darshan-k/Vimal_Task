@@ -1,0 +1,5 @@
+flask
+influxdb-client
+python-dotenv
+cloudinary
+python-dateutil

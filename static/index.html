@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>फार्म ट्रैकर</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .date-info {
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .content {
+            padding: 25px 20px;
+        }
+
+        .question-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+            transition: transform 0.2s ease;
+        }
+
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .question-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .question-number {
+            background: #4CAF50;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .audio-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .audio-btn:hover {
+            background: #1976D2;
+            transform: scale(1.1);
+        }
+
+        .audio-btn.playing {
+            background: #ff9800;
+            animation: pulse 1s infinite;
+        }
+
+        .options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .option-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .option-btn:hover {
+            border-color: #4CAF50;
+            color: #4CAF50;
+            transform: scale(1.02);
+        }
+
+        .option-btn.selected {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .followup {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 10px;
+            border-left: 4px solid #ffc107;
+            display: none;
+        }
+
+        .followup.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .voice-btn {
+            padding: 10px 15px;
+            border: 2px solid #2196F3;
+            border-radius: 20px;
+            background: white;
+            color: #2196F3;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .voice-btn:hover {
+            background: #2196F3;
+            color: white;
+        }
+
+        .voice-btn.recording {
+            background: #f44336;
+            border-color: #f44336;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .photo-upload {
+            margin-top: 15px;
+            padding: 15px;
+            border: 2px dashed #4CAF50;
+            border-radius: 10px;
+            text-align: center;
+            background: #f9f9f9;
+        }
+
+        .photo-upload input[type="file"] {
+            display: none;
+        }
+
+        .photo-upload-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .photo-upload-btn:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .photo-preview {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 10px;
+            margin: 10px;
+            object-fit: cover;
+            border: 2px solid #4CAF50;
+        }
+
+        .photo-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .photo-item {
+            position: relative;
+            display: inline-block;
+        }
+
+        .remove-photo {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 30px;
+        }
+
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
+        }
+
+        .save-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .text-only-input {
+            background: #f0f8f0;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .option-image-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .option-image {
+            width: 100%;
+            max-height: 120px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option-image.selected {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
+        }
+
+        .option-image-label {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+            }
+            
+            .options {
+                flex-direction: column;
+            }
+            
+            .option-btn {
+                flex: none;
+                width: 100%;
+            }
+
+            .option-image-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .option-image {
+                max-height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌾 फार्म ट्रैकर</h1>
+            <p class="subtitle" id="subtitle">दैनिक निगरानी प्रणाली</p>
+            <div class="date-info" id="dateInfo">
+                लोड हो रहा है...
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="success-message" id="successMessage">
+                ✅ आपका जवाब सफलतापूर्वक सहेजा गया है!
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div id="questionsContainer">
+                <!-- All questions will be loaded here -->
+            </div>
+
+            <button class="save-btn" id="saveBtn" onclick="saveProgress()">
+                💾 आज का प्रविष्टि सहेजें
+            </button>
+        </div>
+
+        <div class="footer">
+            रोज़ाना ट्रैक करें • बेहतर उगाएं • अधिक फसल प्राप्त करें 🌱
+        </div>
+    </div>
+
+    <script>
+        // Hindi translations only
+        const translations = {
+            hindi: {
+                title: 'फार्म ट्रैकर',
+                subtitle: {
+                    day1: 'दिन 1 - पानी और सेहत',
+                    day2: 'दिन 2 - खाद और काम',
+                    weekly: 'साप्ताहिक हाल'
+                },
+                successMessage: '✅ आपका जवाब सफलतापूर्वक सहेजा गया है!',
+                saveButton: '💾 आज का प्रविष्टि सहेजें',
+                savedMessage: '✅ सहेजा गया!',
+                footer: 'रोज़ाना ट्रैक करें • बेहतर उगाएं • अधिक फसल प्राप्त करें 🌱',
+                speechNotSupported: 'आपके ब्राउज़र में वॉइस इनपुट नहीं चलता',
+                day1Questions: [
+                    { 
+                        text: 'आज पानी दिया?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '💧', 
+                        audio: 'day1_q1.mp3',
+                        englishText: 'Did you water the plants today?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'आज बारिश हुई?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🌧️', 
+                        audio: 'day1_q2.mp3',
+                        englishText: 'Did it rain today on your field?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'कीटनाशक/दवाई का छिड़काव किया?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🔬', 
+                        audio: 'day1_q3.mp3',
+                        englishText: 'Did you spray pesticide or fungicide?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'खरपतवार निकाला?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🌿', 
+                        audio: 'day1_q4.mp3',
+                        englishText: 'Did you remove weeds today?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'पौधा ठीक दिख रहा है?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🌱', 
+                        followup: 'no', 
+                        photo: 'followup', 
+                        audio: 'day1_q5.mp3',
+                        englishText: 'Is the plant healthy today (your view)?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'आज मौसम खराब रहा (तेज़ हवा/ओले/गर्मी)?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '⛈️', 
+                        photo: 'yes', 
+                        audio: 'day1_q6.mp3',
+                        englishText: 'Any unusual weather (wind, hail, storm, excess heat)?',
+                        englishOptions: ['Yes', 'No']
+                    }
+                ],
+                day2Questions: [
+                    { 
+                        text: 'खाद डाला?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🧪', 
+                        followup: 'yes', 
+                        voice: true, 
+                        photo: 'followup', 
+                        audio: 'day2_q1.mp3',
+                        englishText: 'Did you apply fertilizer today?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'कोई कीड़ा या बीमारी दिखी?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🐛', 
+                        followup: 'yes', 
+                        photo: 'followup', 
+                        voice: true, 
+                        audio: 'day2_q2.mp3',
+                        englishText: 'Did you notice any pests or disease symptoms?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'पत्तियों में दिक्कत (धब्बे/पीली/मुड़ी) दिखी?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🍃', 
+                        followup: 'yes', 
+                        photo: 'yes', 
+                        audio: 'day2_q3.mp3',
+                        englishText: 'Are the leaves showing any issues (spots, yellowing, curling)?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'आज खेत में किसने काम किया?', 
+                        options: ['स्वयं', 'मज़दूर', 'कोई नहीं'], 
+                        emoji: '👨‍🌾', 
+                        audio: 'day2_q4.mp3',
+                        englishText: 'Did you or any labor work in the field today?',
+                        englishOptions: ['Self', 'Labor', 'No one']
+                    },
+                    { 
+                        text: 'सिंचाई/बिजली की दिक्कत हुई?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '⚡', 
+                        followup: 'yes', 
+                        voice: true, 
+                        audio: 'day2_q5.mp3',
+                        englishText: 'Did you face any irrigation or electricity issues?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'आज का काम पूरा हुआ?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '✅', 
+                        audio: 'day2_q6.mp3',
+                        englishText: 'Did you complete the planned task for today?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'कोई और दिक्कत/नोट?', 
+                        options: [], 
+                        emoji: '📝', 
+                        type: 'text', 
+                        followup: 'yes', 
+                        voice: true, 
+                        photo: true, 
+                        audio: 'day2_q7.mp3',
+                        englishText: 'Any other field observation or issue today?',
+                        englishOptions: []
+                    }
+                ],
+                weeklyQuestions: [
+                    { 
+                        text: 'फसल किस अवस्था में है?', 
+                        options: ['अंकुरण', 'वानस्पतिक', 'फूल', 'फल'], 
+                        images: {
+                            'अंकुरण': '/static/germination.png',
+                            'वानस्पतिक': '/static/vegetative.png',
+                            'फूल': '/static/flowering.png',
+                            'फल': '/static/fruiting.png'
+                        },
+                        emoji: '📈', 
+                        photo: true, 
+                        audio: 'weekly_q1.mp3',
+                        englishText: 'What stage is the crop in now?',
+                        englishOptions: ['Germination', 'Vegetative', 'Flowering', 'Fruiting']
+                    },
+                    { 
+                        text: 'फसल बढ़िया बढ़ रही है?', 
+                        options: ['हाँ', 'धीमी', 'खराब'], 
+                        emoji: '📊', 
+                        audio: 'weekly_q2.mp3',
+                        englishText: 'Is the crop growing as expected?',
+                        englishOptions: ['Yes', 'Slight Delay', 'Poor']
+                    },
+                    { 
+                        text: 'उपज उम्मीद जैसी लगे?', 
+                        options: ['हाँ', 'थोड़ी कम', 'बहुत कम'], 
+                        emoji: '🎯', 
+                        audio: 'weekly_q3.mp3',
+                        englishText: 'Is your expected harvest yield still realistic?',
+                        englishOptions: ['Yes', 'Slightly Lower', 'Much Lower']
+                    },
+                    { 
+                        text: 'भंडारण या बिक्री की योजना?', 
+                        options: ['बिक्री', 'भंडारण', 'अभी नहीं'], 
+                        emoji: '📦', 
+                        audio: 'weekly_q4.mp3',
+                        englishText: 'Have you planned for harvest storage or sale?',
+                        englishOptions: ['Sale', 'Storage', 'Not yet']
+                    },
+                    { 
+                        text: 'इस हफ्ते खेत की मरम्मत (बाड़/जाल/खंभा) करनी पड़ी?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🔧', 
+                        photo: 'yes', 
+                        audio: 'weekly_q5.mp3',
+                        englishText: 'Did any crop support (fence, net, stakes) need fixing this week?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'सलाह किससे ली?', 
+                        options: ['कृषि विशेषज्ञ', 'डीलर', 'पड़ोसी', 'कोई नहीं'], 
+                        emoji: '💬', 
+                        audio: 'weekly_q6.mp3',
+                        englishText: 'Did you consult anyone for crop advice?',
+                        englishOptions: ['Agronomist', 'Dealer', 'Neighbor', 'None']
+                    },
+                    { 
+                        text: 'हमारी टीम से मदद चाहिए?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '📞', 
+                        followup: 'yes', 
+                        voice: true, 
+                        audio: 'weekly_q7.mp3',
+                        englishText: 'Do you want expert help or callback from our team?',
+                        englishOptions: ['Yes', 'No']
+                    },
+                    { 
+                        text: 'जानवर/पक्षी से नुकसान हुआ?', 
+                        options: ['हाँ', 'नहीं'], 
+                        emoji: '🦌', 
+                        photo: 'yes', 
+                        audio: 'weekly_q8.mp3',
+                        englishText: 'Any wildlife/cattle/animal damage this week?',
+                        englishOptions: ['Yes', 'No']
+                    }
+                ]
+            }
+        };
+
+        // English questions for backend storage
+        const englishQuestions = {
+            day1: translations.hindi.day1Questions.map((q, i) => ({
+                hindiText: q.text,
+                englishText: q.englishText,
+                options: q.englishOptions,
+                index: i
+            })),
+            day2: translations.hindi.day2Questions.map((q, i) => ({
+                hindiText: q.text,
+                englishText: q.englishText,
+                options: q.englishOptions,
+                index: i
+            })),
+            weekly: translations.hindi.weeklyQuestions.map((q, i) => ({
+                hindiText: q.text,
+                englishText: q.englishText,
+                options: q.englishOptions,
+                index: i
+            }))
+        };
+
+        // Farm tracking data structure
+        let responses = {};
+        let isRecording = false;
+        let recognition = null;
+        let currentAudio = null;
+
+        // Audio playback function
+        function playQuestionAudio(audioFile) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+
+            currentAudio = new Audio(`/static/audio/${audioFile}`);
+            currentAudio.play().catch(error => {
+                console.error('Audio playback failed:', error);
+            });
+
+            const audioBtn = event.target;
+            audioBtn.classList.add('playing');
+            
+            currentAudio.onended = () => {
+                audioBtn.classList.remove('playing');
+            };
+            
+            currentAudio.onerror = () => {
+                audioBtn.classList.remove('playing');
+                console.error('Failed to load audio file:', audioFile);
+            };
+        }
+
+        // Initialize speech recognition for voice input
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'hi-IN';
+
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    const activeTextarea = document.querySelector('textarea:focus, input[type="text"]:focus');
+                    if (activeTextarea) {
+                        activeTextarea.value = transcript;
+                        activeTextarea.dispatchEvent(new Event('input'));
+                    }
+                };
+
+                recognition.onend = function() {
+                    isRecording = false;
+                    updateVoiceButtons();
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    isRecording = false;
+                    updateVoiceButtons();
+                };
+            }
+        }
+
+        function startVoiceInput(buttonElement) {
+            if (!recognition) {
+                alert(translations.hindi.speechNotSupported);
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+                return;
+            }
+
+            const textarea = buttonElement.parentElement.querySelector('textarea, input[type="text"]');
+            if (textarea) textarea.focus();
+
+            recognition.lang = 'hi-IN';
+            isRecording = true;
+            updateVoiceButtons();
+            recognition.start();
+        }
+
+        function updateVoiceButtons() {
+            const voiceBtns = document.querySelectorAll('.voice-btn');
+            voiceBtns.forEach(btn => {
+                if (isRecording) {
+                    btn.classList.add('recording');
+                    btn.innerHTML = '⏹️ रुकें';
+                } else {
+                    btn.classList.remove('recording');
+                    btn.innerHTML = '🎤 आवाज़';
+                }
+            });
+        }
+
+        async function handlePhotoUpload(input, questionIndex) {
+            const files = Array.from(input.files);
+            if (!files.length) return;
+
+            if (!responses[questionIndex]) {
+                responses[questionIndex] = {};
+            }
+            responses[questionIndex].photos = [];
+
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    await new Promise(resolve => {
+                        reader.onload = async function(e) {
+                            const imageData = e.target.result;
+                            try {
+                                const response = await fetch('/upload_image', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        image: imageData,
+                                        question_id: `q${questionIndex + 1}`,
+                                        timestamp: new Date().toISOString()
+                                    })
+                                });
+                                const result = await response.json();
+                                if (response.ok) {
+                                    responses[questionIndex].photos.push({
+                                        url: result.image_url
+                                    });
+                                    renderPhotos(questionIndex);
+                                    updateProgress();
+                                } else {
+                                    console.error('Image upload failed:', result.error);
+                                    alert('फोटो अपलोड करने में त्रुटि: ' + result.error);
+                                }
+                            } catch (error) {
+                                console.error('Error uploading image:', error);
+                                alert('फोटो अपलोड करने में त्रुटि: ' + error.message);
+                            }
+                            resolve();
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+            }
+
+            input.value = '';
+        }
+
+        function renderPhotos(questionIndex) {
+            const container = document.getElementById(`photos_${questionIndex}`);
+            if (!container || !responses[questionIndex]?.photos) return;
+
+            container.innerHTML = '';
+            responses[questionIndex].photos.forEach((photo, photoIndex) => {
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'photo-item';
+                photoDiv.innerHTML = `
+                    <img src="${photo.url}" alt="अपलोड की गई फोटो" class="photo-preview">
+                    <button class="remove-photo" onclick="removePhoto(${questionIndex}, ${photoIndex})">×</button>
+                `;
+                container.appendChild(photoDiv);
+            });
+        }
+
+        function removePhoto(questionIndex, photoIndex) {
+            if (responses[questionIndex]?.photos) {
+                responses[questionIndex].photos.splice(photoIndex, 1);
+                renderPhotos(questionIndex);
+                updateProgress();
+            }
+        }
+
+        function getCurrentQuestions() {
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+            const dayOfWeek = today.getDay();
+            const dayOfMonth = today.getDate();
+            let selectedQuestions;
+            let questionTypeKey;
+            
+            if (dayOfWeek === 1) { // Monday
+                selectedQuestions = translations.hindi.weeklyQuestions;
+                questionTypeKey = 'weekly';
+            } else {
+                selectedQuestions = (dayOfMonth % 2 === 1) ? translations.hindi.day1Questions : translations.hindi.day2Questions;
+                questionTypeKey = (dayOfMonth % 2 === 1) ? 'day1' : 'day2';
+            }
+            
+            return { questions: selectedQuestions, type: questionTypeKey };
+        }
+
+        function getQuestionType() {
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+            const dayOfWeek = today.getDay();
+            const dayOfMonth = today.getDate();
+            
+            if (dayOfWeek === 1) {
+                return translations.hindi.subtitle.weekly;
+            } else {
+                return (dayOfMonth % 2 === 1) ? translations.hindi.subtitle.day1 : translations.hindi.subtitle.day2;
+            }
+        }
+
+        function updateDateInfo() {
+            const today = new Date();
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            };
+            const dateStr = today.toLocaleDateString('hi-IN', options);
+            const questionType = getQuestionType();
+            document.getElementById('dateInfo').textContent = dateStr;
+            document.getElementById('subtitle').textContent = questionType;
+            document.querySelector('h1').textContent = `🌾 ${translations.hindi.title}`;
+            document.querySelector('.footer').textContent = translations.hindi.footer;
+            document.getElementById('successMessage').textContent = translations.hindi.successMessage;
+            document.getElementById('saveBtn').textContent = translations.hindi.saveButton;
+        }
+
+        function renderAllQuestions() {
+            const { questions, type } = getCurrentQuestions();
+            const container = document.getElementById('questionsContainer');
+            let html = '';
+
+            questions.forEach((question, index) => {
+                html += `
+                    <div class="question-card">
+                        <div class="question-header">
+                            <div class="question-text">
+                                <span class="question-number">${index + 1}</span>
+                                ${question.emoji} ${question.text}
+                            </div>
+                            ${question.audio ? `<button class="audio-btn" onclick="playQuestionAudio('${question.audio}')" title="प्रश्न सुनें">🔊</button>` : ''}
+                        </div>
+                `;
+
+                if (question.type === 'text') {
+                    html += `
+                        <div class="text-only-input">
+                            <textarea class="text-input" placeholder="अपने अवलोकन साझा करें..." id="textResponse_${index}" oninput="saveResponse(${index}, 'text', this.value)"></textarea>
+                            ${question.followup ? `
+                                <div class="followup show" id="followup_${index}">
+                                    <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
+                                    ${question.voice ? `
+                                        <div class="voice-controls">
+                                            <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
+                                            <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                            ${question.voice ? `
+                                <div class="voice-controls">
+                                    <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
+                                    <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    html += `<div class="options">`;
+                    question.options.forEach(option => {
+                        html += `
+                            <button class="option-btn" onclick="selectOption(${index}, '${option}', this)" data-option="${option}">
+                                ${option}
+                            </button>
+                        `;
+                    });
+                    html += `</div>`;
+
+                    // Add images for the first weekly question
+                    if (type === 'weekly' && index === 0 && question.images) {
+                        html += `<div class="option-image-container">`;
+                        question.options.forEach(option => {
+                            const imageUrl = question.images[option] || '';
+                            html += `
+                                <div>
+                                    <img src="${imageUrl}" alt="${option}" class="option-image" data-option="${option}" onclick="selectOption(${index}, '${option}', this)">
+                                    <div class="option-image-label">${option}</div>
+                                </div>
+                            `;
+                        });
+                        html += `</div>`;
+                    }
+
+                    if (question.followup || question.voice) {
+                        html += `
+                            <div class="followup" id="followup_${index}">
+                                <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
+                                ${question.voice ? `
+                                    <div class="voice-controls">
+                                        <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
+                                        <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
+                                    </div>
+                                ` : ''}
+                                ${question.photo === 'followup' ? `
+                                    <div class="photo-upload" id="photoSection_${index}" style="display: none;">
+                                        <input type="file" id="photoInput_${index}" accept="image/*" multiple onchange="handlePhotoUpload(this, ${index})">
+                                        <button class="photo-upload-btn" onclick="document.getElementById('photoInput_${index}').click()">
+                                            📷 फोटो जोड़ें
+                                        </button>
+                                        <div style="font-size: 12px; color: #666;">फोटो कैप्चर करने या चुनने के लिए टैप करें</div>
+                                        <div class="photo-list" id="photos_${index}"></div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }
+                }
+
+                if (question.photo === true || question.photo === 'yes') {
+                    html += `
+                        <div class="photo-upload" id="photoSection_${index}">
+                            <input type="file" id="photoInput_${index}" accept="image/*" multiple onchange="handlePhotoUpload(this, ${index})">
+                            <button class="photo-upload-btn" onclick="document.getElementById('photoInput_${index}').click()">
+                                📷 फोटो जोड़ें
+                            </button>
+                            <div style="font-size: 12px; color: #666;">फोटो कैप्चर करने या चुनने के लिए टैप करें</div>
+                            <div class="photo-list" id="photos_${index}"></div>
+                        </div>
+                    `;
+                }
+
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+            updateProgress();
+        }
+
+        function selectOption(questionIndex, option, element) {
+            const questions = getCurrentQuestions().questions;
+            const question = questions[questionIndex];
+
+            // Handle button selection
+            const buttons = element.parentElement.parentElement.querySelectorAll('.option-btn');
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            const selectedButton = element.parentElement.parentElement.querySelector(`.option-btn[data-option="${option}"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('selected');
+            }
+
+            // Handle image selection
+            const images = element.parentElement.parentElement.querySelectorAll('.option-image');
+            images.forEach(img => img.classList.remove('selected'));
+            if (element.classList.contains('option-image')) {
+                element.classList.add('selected');
+            } else {
+                const selectedImage = element.parentElement.parentElement.querySelector(`.option-image[data-option="${option}"]`);
+                if (selectedImage) {
+                    selectedImage.classList.add('selected');
+                }
+            }
+
+            saveResponse(questionIndex, 'option', option);
+
+            const followup = document.getElementById(`followup_${questionIndex}`);
+            if (followup) {
+                const shouldShow = (question.followup === 'yes' && option === 'हाँ') ||
+                                 (question.followup === 'no' && option === 'नहीं');
+
+                if (shouldShow) {
+                    followup.classList.add('show');
+                } else {
+                    followup.classList.remove('show');
+                    saveResponse(questionIndex, 'followupText', '');
+                }
+            }
+
+            if (question.photo === 'followup') {
+                const photoSection = document.getElementById(`photoSection_${questionIndex}`);
+                if (photoSection) {
+                    const shouldShow = option === 'हाँ';
+                    photoSection.style.display = shouldShow ? 'block' : 'none';
+                    if (!shouldShow) {
+                        responses[questionIndex].photos = [];
+                        renderPhotos(questionIndex);
+                    }
+                }
+            }
+
+            updateProgress();
+        }
+
+        function saveResponse(questionIndex, type, value) {
+            if (!responses[questionIndex]) {
+                responses[questionIndex] = {};
+            }
+            responses[questionIndex][type] = value;
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const questions = getCurrentQuestions().questions;
+            let answeredCount = 0;
+
+            questions.forEach((question, index) => {
+                const response = responses[index];
+                if (response) {
+                    if (question.type === 'text' && response.text) {
+                        answeredCount++;
+                    } else if (question.type !== 'text' && response.option) {
+                        answeredCount++;
+                    }
+                }
+            });
+
+            const progressPercent = (answeredCount / questions.length) * 100;
+            document.getElementById('progressFill').style.width = progressPercent + '%';
+        }
+
+        async function saveProgress() {
+            const { questions, type } = getCurrentQuestions();
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
+            const questionType = type === 'weekly' ? 'Weekly Review' : 
+                               type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
+
+            // Validate question set
+            const englishQuestionSet = englishQuestions[type];
+            const isValid = questions.every((q, i) => q.text === englishQuestionSet[i].hindiText);
+            if (!isValid) {
+                console.error('Question set mismatch');
+                alert('त्रुटि: प्रश्न सेट में असंगति है।');
+                return;
+            }
+
+            // Compile all responses in English for backend
+            const compiledData = {
+                date: today,
+                type: questionType,
+                language: 'hindi',
+                timestamp: new Date().toISOString(),
+                responses: {}
+            };
+
+            questions.forEach((question, index) => {
+                const response = responses[index];
+                if (response && (response.option || response.text)) {
+                    const englishQuestion = englishQuestionSet[index].englishText;
+                    let answer = '';
+                    
+                    if (response.option) {
+                        const hindiOptionIndex = question.options.indexOf(response.option);
+                        if (hindiOptionIndex !== -1 && englishQuestionSet[index].options[hindiOptionIndex]) {
+                            answer = englishQuestionSet[index].options[hindiOptionIndex];
+                        }
+                    } else if (response.text) {
+                        answer = response.text;
+                    }
+
+                    if (!answer && !response.followupText && (!response.photos || response.photos.length === 0)) {
+                        console.warn(`Skipping question ${index + 1}: No valid fields`);
+                        return;
+                    }
+
+                    compiledData.responses[englishQuestion] = {
+                        answer: answer,
+                        followupText: response.followupText || '',
+                        photos: (response.photos || []).map(photo => ({ url: photo.url }))
+                    };
+                }
+            });
+
+            if (Object.keys(compiledData.responses).length === 0) {
+                alert('कोई जवाब सहेजने के लिए नहीं है। कृपया कम से कम एक प्रश्न का उत्तर दें।');
+                return;
+            }
+
+            console.log('Compiled data to send:', JSON.stringify(compiledData, null, 2));
+
+            try {
+                const response = await fetch('/save_responses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(compiledData)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    console.log('Responses saved successfully:', compiledData);
+                    const successMsg = document.getElementById('successMessage');
+                    successMsg.classList.add('show');
+                    setTimeout(() => {
+                        successMsg.classList.remove('show');
+                    }, 3000);
+
+                    const saveBtn = document.getElementById('saveBtn');
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = translations.hindi.savedMessage;
+                    setTimeout(() => {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = translations.hindi.saveButton;
+                    }, 2000);
+
+                    const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
+                    savedEntries.push(compiledData);
+                    localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
+                } else {
+                    throw new Error(result.error || 'Failed to save responses');
+                }
+            } catch (error) {
+                console.error('Error saving responses:', error);
+                alert('डेटा सहेजने में त्रुटि: ' + error.message);
+            }
+        }
+
+        async function loadSavedResponses() {
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
+            const { type } = getCurrentQuestions();
+            const questionType = type === 'weekly' ? 'Weekly Review' : 
+                               type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
+            
+            const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
+            const todayEntry = savedEntries.find(entry => entry.date === today && entry.type === questionType);
+            
+            if (todayEntry) {
+                console.log('Loading saved responses:', todayEntry);
+                responses = {};
+                
+                const englishQuestionSet = englishQuestions[type];
+                Object.entries(todayEntry.responses).forEach(([englishQuestion, resp]) => {
+                    const questionIndex = englishQuestionSet.findIndex(q => q.englishText === englishQuestion);
+                    if (questionIndex !== -1) {
+                        let hindiOption = '';
+                        if (resp.answer && englishQuestionSet[questionIndex].options.includes(resp.answer)) {
+                            const englishIndex = englishQuestionSet[questionIndex].options.indexOf(resp.answer);
+                            const hindiQuestion = translations.hindi[type === 'weekly' ? 'weeklyQuestions' : type === 'day1' ? 'day1Questions' : 'day2Questions'][questionIndex];
+                            if (hindiQuestion.options[englishIndex]) {
+                                hindiOption = hindiQuestion.options[englishIndex];
+                            }
+                        }
+                        
+                        responses[questionIndex] = {
+                            option: hindiOption || resp.answer,
+                            followupText: resp.followupText,
+                            photos: resp.photos || []
+                        };
+                    }
+                });
+                
+                renderAllQuestions();
+                updateProgress();
+
+                Object.entries(responses).forEach(([index, response]) => {
+                    if (response.option) {
+                        const button = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-btn[data-option="${response.option}"]`);
+                        if (button) {
+                            button.classList.add('selected');
+                            selectOption(index, response.option, button);
+                        }
+                        // Also select the corresponding image
+                        const image = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-image[data-option="${response.option}"]`);
+                        if (image) {
+                            image.classList.add('selected');
+                        }
+                    }
+                    if (response.followupText) {
+                        const followupInput = document.getElementById(`followupText_${index}`);
+                        if (followupInput) {
+                            followupInput.value = response.followupText;
+                        }
+                    }
+                    if (response.text) {
+                        const textInput = document.getElementById(`textResponse_${index}`);
+                        if (textInput) {
+                            textInput.value = response.text;
+                        }
+                    }
+                    if (response.photos && response.photos.length > 0) {
+                        renderPhotos(index);
+                    }
+                });
+            }
+        }
+
+        function init() {
+            updateDateInfo();
+            initSpeechRecognition();
+            loadSavedResponses();
+            renderAllQuestions();
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
