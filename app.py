@@ -67,6 +67,11 @@ EXPECTED_QUESTIONS = {
     ]
 }
 
+# FIXED: Custom 404 handler that returns JSON
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Endpoint not found'}), 404
+
 @app.route('/')
 def serve_index():
     return app.send_static_file('index.html')
@@ -214,7 +219,7 @@ def save_responses():
             tag_parts.append(f"language={escape_tag(language)}")
             tag_parts.append(f"question_id=q{index + 1}")
 
-            # Construct Line Protocol - FIXED: Use ','.join(tag_parts) instead of unpacking
+            # Construct Line Protocol
             line = f'Vimal_Task,{",".join(tag_parts)} {",".join(fields)} {timestamp_ns}'
             lines.append(line)
             print(f"Generated line for q{index + 1}: {line}")
