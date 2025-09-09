@@ -4,6 +4,7 @@ from influxdb_client.client.query_api import QueryApi
 import os
 from dotenv import load_dotenv
 import json
+import dateutil.parser
 import cloudinary
 import cloudinary.uploader
 from datetime import datetime
@@ -16,15 +17,15 @@ load_dotenv()
 
 # InfluxDB configuration
 INFLUXDB_URL = os.getenv('INFLUXDB_URL', 'https://us-east-1-1.aws.cloud2.influxdata.com')
-INFLUXDB_TOKEN = os.getenv('INFLUXDB_TOKEN', 'your_influxdb_token')
+INFLUXDB_TOKEN = os.getenv('INFLUXDB_TOKEN', 'nZ49M1MTGbHtRCrc2OJhx-kVIBWuwvereT-o1mcq2COz3urUNuUuIIMjysObK8oOEHn8352w7LKFyrX8PQpdsA==')
 INFLUXDB_ORG = os.getenv('INFLUXDB_ORG', 'Agri')
 INFLUXDB_BUCKET = os.getenv('INFLUXDB_BUCKET', 'smart_agri')
 
 # Cloudinary configuration
 cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'your_cloud_name'),
-    api_key=os.getenv('CLOUDINARY_API_KEY', 'your_api_key'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET', 'your_api_secret'),
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'dnjlsegrq'),
+    api_key=os.getenv('CLOUDINARY_API_KEY', '315166364872797'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET', 'xIrcgfB7euQCW-FKi0kd6nWur24'),
     secure=True
 )
 CLOUDINARY_UPLOAD_PRESET = os.getenv('CLOUDINARY_UPLOAD_PRESET', 'smart_agri_preset')
@@ -290,3 +291,4 @@ if __name__ == '__main__':
     print("Starting Farm Tracker API...")
     print(f"Serving static files from: {os.path.abspath('static')}")
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
+
