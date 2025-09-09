@@ -349,6 +349,23 @@
             animation: slideDown 0.3s ease;
         }
 
+        .thank-you-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .thank-you-message.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
         .footer {
             text-align: center;
             padding: 20px;
@@ -458,15 +475,15 @@
             <div class="success-message" id="successMessage">
                 ✅ आपका जवाब सफलतापूर्वक सहेजा गया है!
             </div>
-
-            <div class="progress-bar">
+            <div class="thank-you-message" id="thankYouMessage">
+                धन्यवाद, विमल। कल फिर मिलते हैं! 🌾
+            </div>
+            <div class="progress-bar" id="progressBar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
-
             <div id="questionsContainer">
                 <!-- All questions will be loaded here -->
             </div>
-
             <button class="save-btn" id="saveBtn" onclick="saveProgress()">
                 💾 आज का प्रविष्टि सहेजें
             </button>
@@ -477,10 +494,9 @@
         </div>
     </div>
 
-<!-- Replace the entire <script> section with this updated version -->
-<script>
-    // Hindi translations only
- const translations = {
+    <script>
+        // Hindi translations only
+        const translations = {
             hindi: {
                 title: 'फार्म ट्रैकर',
                 subtitle: {
@@ -540,7 +556,6 @@
                         text: 'आज मौसम खराब रहा (तेज़ हवा/ओले/गर्मी)?', 
                         options: ['हाँ', 'नहीं'], 
                         emoji: '⛈️', 
-                        photo: 'yes', 
                         audio: 'day1_q6.mp3',
                         englishText: 'Any unusual weather (wind, hail, storm, excess heat)?',
                         englishOptions: ['Yes', 'No']
@@ -698,268 +713,315 @@
             }
         };
 
-    // English questions for backend storage
-    const englishQuestions = {
-        day1: translations.hindi.day1Questions.map((q, i) => ({
-            hindiText: q.text,
-            englishText: q.englishText,
-            options: q.englishOptions,
-            index: i
-        })),
-        day2: translations.hindi.day2Questions.map((q, i) => ({
-            hindiText: q.text,
-            englishText: q.englishText,
-            options: q.englishOptions,
-            index: i
-        })),
-        weekly: translations.hindi.weeklyQuestions.map((q, i) => ({
-            hindiText: q.text,
-            englishText: q.englishText,
-            options: q.englishOptions,
-            index: i
-        }))
-    };
-
-    // Farm tracking data structure
-    let responses = {};
-    let isRecording = false;
-    let recognition = null;
-    let currentAudio = null;
-
-    // Audio playback function
-    function playQuestionAudio(audioFile) {
-        if (currentAudio) {
-            currentAudio.pause();
-            currentAudio.currentTime = 0;
-            currentAudio = null;
-        }
-
-        currentAudio = new Audio(`/static/audio/${audioFile}`);
-        currentAudio.play().catch(error => {
-            console.error('Audio playback failed:', error);
-        });
-
-        const audioBtn = event.target;
-        audioBtn.classList.add('playing');
-        
-        currentAudio.onended = () => {
-            audioBtn.classList.remove('playing');
+        // English questions for backend storage
+        const englishQuestions = {
+            day1: translations.hindi.day1Questions.map((q, i) => ({
+                hindiText: q.text,
+                englishText: q.englishText,
+                options: q.englishOptions,
+                index: i
+            })),
+            day2: translations.hindi.day2Questions.map((q, i) => ({
+                hindiText: q.text,
+                englishText: q.englishText,
+                options: q.englishOptions,
+                index: i
+            })),
+            weekly: translations.hindi.weeklyQuestions.map((q, i) => ({
+                hindiText: q.text,
+                englishText: q.englishText,
+                options: q.englishOptions,
+                index: i
+            }))
         };
-        
-        currentAudio.onerror = () => {
-            audioBtn.classList.remove('playing');
-            console.error('Failed to load audio file:', audioFile);
-        };
-    }
 
-    // Initialize speech recognition for voice input
-    function initSpeechRecognition() {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'hi-IN';
+        // Farm tracking data structure
+        let responses = {};
+        let isRecording = false;
+        let recognition = null;
+        let currentAudio = null;
 
-            recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript;
-                const activeTextarea = document.querySelector('textarea:focus, input[type="text"]:focus');
-                if (activeTextarea) {
-                    activeTextarea.value = transcript;
-                    activeTextarea.dispatchEvent(new Event('input'));
-                }
+        // Audio playback function
+        function playQuestionAudio(audioFile) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+
+            currentAudio = new Audio(`/static/audio/${audioFile}`);
+            currentAudio.play().catch(error => {
+                console.error('Audio playback failed:', error);
+            });
+
+            const audioBtn = event.target;
+            audioBtn.classList.add('playing');
+            
+            currentAudio.onended = () => {
+                audioBtn.classList.remove('playing');
             };
-
-            recognition.onend = function() {
-                isRecording = false;
-                updateVoiceButtons();
-            };
-
-            recognition.onerror = function(event) {
-                console.error('Speech recognition error:', event.error);
-                isRecording = false;
-                updateVoiceButtons();
+            
+            currentAudio.onerror = () => {
+                audioBtn.classList.remove('playing');
+                console.error('Failed to load audio file:', audioFile);
             };
         }
-    }
 
-    function startVoiceInput(buttonElement) {
-        if (!recognition) {
-            alert(translations.hindi.speechNotSupported);
-            return;
+        // Initialize speech recognition for voice input
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'hi-IN';
+
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    const activeTextarea = document.querySelector('textarea:focus, input[type="text"]:focus');
+                    if (activeTextarea) {
+                        activeTextarea.value = transcript;
+                        activeTextarea.dispatchEvent(new Event('input'));
+                    }
+                };
+
+                recognition.onend = function() {
+                    isRecording = false;
+                    updateVoiceButtons();
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    isRecording = false;
+                    updateVoiceButtons();
+                };
+            }
         }
 
-        if (isRecording) {
-            recognition.stop();
-            return;
-        }
+        function startVoiceInput(buttonElement) {
+            if (!recognition) {
+                alert(translations.hindi.speechNotSupported);
+                return;
+            }
 
-        const textarea = buttonElement.parentElement.querySelector('textarea, input[type="text"]');
-        if (textarea) textarea.focus();
-
-        recognition.lang = 'hi-IN';
-        isRecording = true;
-        updateVoiceButtons();
-        recognition.start();
-    }
-
-    function updateVoiceButtons() {
-        const voiceBtns = document.querySelectorAll('.voice-btn');
-        voiceBtns.forEach(btn => {
             if (isRecording) {
-                btn.classList.add('recording');
-                btn.innerHTML = '⏹️ रुकें';
-            } else {
-                btn.classList.remove('recording');
-                btn.innerHTML = '🎤 आवाज़';
+                recognition.stop();
+                return;
             }
-        });
-    }
 
-    async function handlePhotoUpload(input, questionIndex) {
-        const files = Array.from(input.files);
-        if (!files.length) return;
+            const textarea = buttonElement.parentElement.querySelector('textarea, input[type="text"]');
+            if (textarea) textarea.focus();
 
-        if (!responses[questionIndex]) {
-            responses[questionIndex] = {};
+            recognition.lang = 'hi-IN';
+            isRecording = true;
+            updateVoiceButtons();
+            recognition.start();
         }
-        responses[questionIndex].photos = [];
 
-        for (const file of files) {
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                await new Promise(resolve => {
-                    reader.onload = async function(e) {
-                        const imageData = e.target.result;
-                        try {
-                            const response = await fetch('/upload_image', {  // FIXED: Use /upload_image (not /api/)
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    image: imageData,
-                                    question_id: `q${questionIndex + 1}`,
-                                    timestamp: new Date().toISOString()
-                                })
-                            });
-                            const result = await response.json();
-                            if (response.ok) {
-                                responses[questionIndex].photos.push({
-                                    url: result.image_url
+        function updateVoiceButtons() {
+            const voiceBtns = document.querySelectorAll('.voice-btn');
+            voiceBtns.forEach(btn => {
+                if (isRecording) {
+                    btn.classList.add('recording');
+                    btn.innerHTML = '⏹️ रुकें';
+                } else {
+                    btn.classList.remove('recording');
+                    btn.innerHTML = '🎤 आवाज़';
+                }
+            });
+        }
+
+        async function handlePhotoUpload(input, questionIndex) {
+            const files = Array.from(input.files);
+            if (!files.length) return;
+
+            if (!responses[questionIndex]) {
+                responses[questionIndex] = {};
+            }
+            responses[questionIndex].photos = [];
+
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    await new Promise(resolve => {
+                        reader.onload = async function(e) {
+                            const imageData = e.target.result;
+                            try {
+                                const response = await fetch('/upload_image', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        image: imageData,
+                                        question_id: `q${questionIndex + 1}`,
+                                        timestamp: new Date().toISOString()
+                                    })
                                 });
-                                renderPhotos(questionIndex);
-                                updateProgress();
-                            } else {
-                                console.error('Image upload failed:', result.error);
-                                alert('फोटो अपलोड करने में त्रुटि: ' + result.error);
+                                const result = await response.json();
+                                if (response.ok) {
+                                    responses[questionIndex].photos.push({
+                                        url: result.image_url
+                                    });
+                                    renderPhotos(questionIndex);
+                                    updateProgress();
+                                } else {
+                                    console.error('Image upload failed:', result.error);
+                                    alert('फोटो अपलोड करने में त्रुटि: ' + result.error);
+                                }
+                            } catch (error) {
+                                console.error('Error uploading image:', error);
+                                alert('फोटो अपलोड करने में त्रुटि: ' + error.message);
                             }
-                        } catch (error) {
-                            console.error('Error uploading image:', error);
-                            alert('फोटो अपलोड करने में त्रुटि: ' + error.message);
-                        }
-                        resolve();
-                    };
-                    reader.readAsDataURL(file);
-                });
+                            resolve();
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+            }
+
+            input.value = '';
+        }
+
+        function renderPhotos(questionIndex) {
+            const container = document.getElementById(`photos_${questionIndex}`);
+            if (!container || !responses[questionIndex]?.photos) return;
+
+            container.innerHTML = '';
+            responses[questionIndex].photos.forEach((photo, photoIndex) => {
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'photo-item';
+                photoDiv.innerHTML = `
+                    <img src="${photo.url}" alt="अपलोड की गई फोटो" class="photo-preview">
+                    <button class="remove-photo" onclick="removePhoto(${questionIndex}, ${photoIndex})">×</button>
+                `;
+                container.appendChild(photoDiv);
+            });
+        }
+
+        function removePhoto(questionIndex, photoIndex) {
+            if (responses[questionIndex]?.photos) {
+                responses[questionIndex].photos.splice(photoIndex, 1);
+                renderPhotos(questionIndex);
+                updateProgress();
             }
         }
 
-        input.value = '';
-    }
-
-    function renderPhotos(questionIndex) {
-        const container = document.getElementById(`photos_${questionIndex}`);
-        if (!container || !responses[questionIndex]?.photos) return;
-
-        container.innerHTML = '';
-        responses[questionIndex].photos.forEach((photo, photoIndex) => {
-            const photoDiv = document.createElement('div');
-            photoDiv.className = 'photo-item';
-            photoDiv.innerHTML = `
-                <img src="${photo.url}" alt="अपलोड की गई फोटो" class="photo-preview">
-                <button class="remove-photo" onclick="removePhoto(${questionIndex}, ${photoIndex})">×</button>
-            `;
-            container.appendChild(photoDiv);
-        });
-    }
-
-    function removePhoto(questionIndex, photoIndex) {
-        if (responses[questionIndex]?.photos) {
-            responses[questionIndex].photos.splice(photoIndex, 1);
-            renderPhotos(questionIndex);
-            updateProgress();
+        function getCurrentQuestions() {
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+            const dayOfWeek = today.getDay();
+            const dayOfMonth = today.getDate();
+            let selectedQuestions;
+            let questionTypeKey;
+            
+            if (dayOfWeek === 1) { // Monday
+                selectedQuestions = translations.hindi.weeklyQuestions;
+                questionTypeKey = 'weekly';
+            } else {
+                selectedQuestions = (dayOfMonth % 2 === 1) ? translations.hindi.day1Questions : translations.hindi.day2Questions;
+                questionTypeKey = (dayOfMonth % 2 === 1) ? 'day1' : 'day2';
+            }
+            
+            return { questions: selectedQuestions, type: questionTypeKey };
         }
-    }
 
-    function getCurrentQuestions() {
-        const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-        const dayOfWeek = today.getDay();
-        const dayOfMonth = today.getDate();
-        let selectedQuestions;
-        let questionTypeKey;
-        
-        if (dayOfWeek === 1) { // Monday
-            selectedQuestions = translations.hindi.weeklyQuestions;
-            questionTypeKey = 'weekly';
-        } else {
-            selectedQuestions = (dayOfMonth % 2 === 1) ? translations.hindi.day1Questions : translations.hindi.day2Questions;
-            questionTypeKey = (dayOfMonth % 2 === 1) ? 'day1' : 'day2';
+        function getQuestionType() {
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+            const dayOfWeek = today.getDay();
+            const dayOfMonth = today.getDate();
+            
+            if (dayOfWeek === 1) {
+                return translations.hindi.subtitle.weekly;
+            } else {
+                return (dayOfMonth % 2 === 1) ? translations.hindi.subtitle.day1 : translations.hindi.subtitle.day2;
+            }
         }
-        
-        return { questions: selectedQuestions, type: questionTypeKey };
-    }
 
-    function getQuestionType() {
-        const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-        const dayOfWeek = today.getDay();
-        const dayOfMonth = today.getDate();
-        
-        if (dayOfWeek === 1) {
-            return translations.hindi.subtitle.weekly;
-        } else {
-            return (dayOfMonth % 2 === 1) ? translations.hindi.subtitle.day1 : translations.hindi.subtitle.day2;
+        function updateDateInfo() {
+            const today = new Date();
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            };
+            const dateStr = today.toLocaleDateString('hi-IN', options);
+            const questionType = getQuestionType();
+            document.getElementById('dateInfo').textContent = dateStr;
+            document.getElementById('subtitle').textContent = questionType;
+            document.querySelector('h1').textContent = `🌾 ${translations.hindi.title}`;
+            document.querySelector('.footer').textContent = translations.hindi.footer;
+            document.getElementById('successMessage').textContent = translations.hindi.successMessage;
+            document.getElementById('saveBtn').textContent = translations.hindi.saveButton;
         }
-    }
 
-    function updateDateInfo() {
-        const today = new Date();
-        const options = {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        };
-        const dateStr = today.toLocaleDateString('hi-IN', options);
-        const questionType = getQuestionType();
-        document.getElementById('dateInfo').textContent = dateStr;
-        document.getElementById('subtitle').textContent = questionType;
-        document.querySelector('h1').textContent = `🌾 ${translations.hindi.title}`;
-        document.querySelector('.footer').textContent = translations.hindi.footer;
-        document.getElementById('successMessage').textContent = translations.hindi.successMessage;
-        document.getElementById('saveBtn').textContent = translations.hindi.saveButton;
-    }
+        function renderAllQuestions() {
+            const { questions, type } = getCurrentQuestions();
+            const container = document.getElementById('questionsContainer');
+            let html = '';
 
-    function renderAllQuestions() {
-        const { questions, type } = getCurrentQuestions();
-        const container = document.getElementById('questionsContainer');
-        let html = '';
-
-        questions.forEach((question, index) => {
-            html += `
-                <div class="question-card">
-                    <div class="question-header">
-                        <div class="question-text">
-                            <span class="question-number">${index + 1}</span>
-                            ${question.emoji} ${question.text}
-                        </div>
-                        ${question.audio ? `<button class="audio-btn" onclick="playQuestionAudio('${question.audio}')" title="प्रश्न सुनें">🔊</button>` : ''}
-                    </div>
-            `;
-
-            if (question.type === 'text') {
+            questions.forEach((question, index) => {
                 html += `
-                    <div class="text-only-input">
-                        <textarea class="text-input" placeholder="अपने अवलोकन साझा करें..." id="textResponse_${index}" oninput="saveResponse(${index}, 'text', this.value)"></textarea>
-                        ${question.followup ? `
-                            <div class="followup show" id="followup_${index}">
+                    <div class="question-card">
+                        <div class="question-header">
+                            <div class="question-text">
+                                <span class="question-number">${index + 1}</span>
+                                ${question.emoji} ${question.text}
+                            </div>
+                            ${question.audio ? `<button class="audio-btn" onclick="playQuestionAudio('${question.audio}')" title="प्रश्न सुनें">🔊</button>` : ''}
+                        </div>
+                `;
+
+                if (question.type === 'text') {
+                    html += `
+                        <div class="text-only-input">
+                            <textarea class="text-input" placeholder="अपने अवलोकन साझा करें..." id="textResponse_${index}" oninput="saveResponse(${index}, 'text', this.value)"></textarea>
+                            ${question.followup ? `
+                                <div class="followup show" id="followup_${index}">
+                                    <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
+                                    ${question.voice ? `
+                                        <div class="voice-controls">
+                                            <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
+                                            <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                            ${question.voice ? `
+                                <div class="voice-controls">
+                                    <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
+                                    <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    if (!(type === 'weekly' && index === 0)) {
+                        html += `<div class="options">`;
+                        question.options.forEach(option => {
+                            html += `
+                                <button class="option-btn" onclick="selectOption(${index}, '${option}', this)" data-option="${option}">
+                                    ${option}
+                                </button>
+                            `;
+                        });
+                        html += `</div>`;
+                    }
+
+                    if (type === 'weekly' && index === 0 && question.images) {
+                        html += `<div class="option-image-container">`;
+                        question.options.forEach(option => {
+                            const imageUrl = question.images[option] || '';
+                            html += `
+                                <div class="option-image-wrapper" onclick="selectOption(${index}, '${option}', this.querySelector('.option-image'))">
+                                    <img src="${imageUrl}" alt="${option}" class="option-image" data-option="${option}">
+                                    <div class="option-image-label">${option}</div>
+                                </div>
+                            `;
+                        });
+                        html += `</div>`;
+                    }
+
+                    if (question.followup || question.voice) {
+                        html += `
+                            <div class="followup" id="followup_${index}">
                                 <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
                                 ${question.voice ? `
                                     <div class="voice-controls">
@@ -967,351 +1029,343 @@
                                         <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
                                     </div>
                                 ` : ''}
-                            </div>
-                        ` : ''}
-                        ${question.voice ? `
-                            <div class="voice-controls">
-                                <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
-                                <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            } else {
-                // Only render buttons for questions other than the first weekly question
-                if (!(type === 'weekly' && index === 0)) {
-                    html += `<div class="options">`;
-                    question.options.forEach(option => {
-                        html += `
-                            <button class="option-btn" onclick="selectOption(${index}, '${option}', this)" data-option="${option}">
-                                ${option}
-                            </button>
-                        `;
-                    });
-                    html += `</div>`;
-                }
-
-                // Add images for the first weekly question
-                if (type === 'weekly' && index === 0 && question.images) {
-                    html += `<div class="option-image-container">`;
-                    question.options.forEach(option => {
-                        const imageUrl = question.images[option] || '';
-                        html += `
-                            <div class="option-image-wrapper" onclick="selectOption(${index}, '${option}', this.querySelector('.option-image'))">
-                                <img src="${imageUrl}" alt="${option}" class="option-image" data-option="${option}">
-                                <div class="option-image-label">${option}</div>
+                                ${question.photo === 'followup' ? `
+                                    <div class="photo-upload" id="photoSection_${index}" style="display: none;">
+                                        <input type="file" id="photoInput_${index}" accept="image/*" multiple onchange="handlePhotoUpload(this, ${index})">
+                                        <button class="photo-upload-btn" onclick="document.getElementById('photoInput_${index}').click()">
+                                            📷 फोटो जोड़ें
+                                        </button>
+                                        <div style="font-size: 12px; color: #666;">फोटो कैप्चर करने या चुनने के लिए टैप करें</div>
+                                        <div class="photo-list" id="photos_${index}"></div>
+                                    </div>
+                                ` : ''}
                             </div>
                         `;
-                    });
-                    html += `</div>`;
+                    }
                 }
 
-                if (question.followup || question.voice) {
+                if (question.photo === true || question.photo === 'yes') {
                     html += `
-                        <div class="followup" id="followup_${index}">
-                            <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
-                            ${question.voice ? `
-                                <div class="voice-controls">
-                                    <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
-                                    <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
-                                </div>
-                            ` : ''}
-                            ${question.photo === 'followup' ? `
-                                <div class="photo-upload" id="photoSection_${index}" style="display: none;">
-                                    <input type="file" id="photoInput_${index}" accept="image/*" multiple onchange="handlePhotoUpload(this, ${index})">
-                                    <button class="photo-upload-btn" onclick="document.getElementById('photoInput_${index}').click()">
-                                        📷 फोटो जोड़ें
-                                    </button>
-                                    <div style="font-size: 12px; color: #666;">फोटो कैप्चर करने या चुनने के लिए टैप करें</div>
-                                    <div class="photo-list" id="photos_${index}"></div>
-                                </div>
-                            ` : ''}
+                        <div class="photo-upload" id="photoSection_${index}">
+                            <input type="file" id="photoInput_${index}" accept="image/*" multiple onchange="handlePhotoUpload(this, ${index})">
+                            <button class="photo-upload-btn" onclick="document.getElementById('photoInput_${index}').click()">
+                                📷 फोटो जोड़ें
+                            </button>
+                            <div style="font-size: 12px; color: #666;">फोटो कैप्चर करने या चुनने के लिए टैप करें</div>
+                            <div class="photo-list" id="photos_${index}"></div>
                         </div>
                     `;
                 }
-            }
 
-            if (question.photo === true || question.photo === 'yes') {
-                html += `
-                    <div class="photo-upload" id="photoSection_${index}">
-                        <input type="file" id="photoInput_${index}" accept="image/*" multiple onchange="handlePhotoUpload(this, ${index})">
-                        <button class="photo-upload-btn" onclick="document.getElementById('photoInput_${index}').click()">
-                            📷 फोटो जोड़ें
-                        </button>
-                        <div style="font-size: 12px; color: #666;">फोटो कैप्चर करने या चुनने के लिए टैप करें</div>
-                        <div class="photo-list" id="photos_${index}"></div>
-                    </div>
-                `;
-            }
-
-            html += `</div>`;
-        });
-
-        container.innerHTML = html;
-        updateProgress();
-    }
-
-    function selectOption(questionIndex, option, element) {
-        const { questions } = getCurrentQuestions();  // FIXED: Get questions here
-        const question = questions[questionIndex];
-
-        // Handle image selection for the first weekly question
-        if (question.images) {
-            const images = element.closest('.question-card').querySelectorAll('.option-image');
-            images.forEach(img => img.classList.remove('selected'));
-            if (element.classList.contains('option-image')) {
-                element.classList.add('selected');
-            } else {
-                const selectedImage = element.closest('.question-card').querySelector(`.option-image[data-option="${option}"]`);
-                if (selectedImage) {
-                    selectedImage.classList.add('selected');
-                }
-            }
-        } else {
-            // Handle button selection for other questions
-            const buttons = element.parentElement.querySelectorAll('.option-btn');
-            buttons.forEach(btn => btn.classList.remove('selected'));
-            if (element.classList.contains('option-btn')) {
-                element.classList.add('selected');
-            }
-        }
-
-        saveResponse(questionIndex, 'option', option);
-
-        const followup = document.getElementById(`followup_${questionIndex}`);
-        if (followup) {
-            const shouldShow = (question.followup === 'yes' && option === 'हाँ') ||
-                             (question.followup === 'no' && option === 'नहीं');
-
-            if (shouldShow) {
-                followup.classList.add('show');
-            } else {
-                followup.classList.remove('show');
-                saveResponse(questionIndex, 'followupText', '');
-            }
-        }
-
-        if (question.photo === 'followup') {
-            const photoSection = document.getElementById(`photoSection_${questionIndex}`);
-            if (photoSection) {
-                const shouldShow = option === 'हाँ';
-                photoSection.style.display = shouldShow ? 'block' : 'none';
-                if (!shouldShow) {
-                    responses[questionIndex].photos = [];
-                    renderPhotos(questionIndex);
-                }
-            }
-        }
-
-        updateProgress();
-    }
-
-    function saveResponse(questionIndex, type, value) {
-        if (!responses[questionIndex]) {
-            responses[questionIndex] = {};
-        }
-        responses[questionIndex][type] = value;
-        updateProgress();
-    }
-
-    function updateProgress() {
-        const { questions } = getCurrentQuestions();
-        let answeredCount = 0;
-
-        questions.forEach((question, index) => {
-            const response = responses[index];
-            if (response) {
-                if (question.type === 'text' && response.text) {
-                    answeredCount++;
-                } else if (question.type !== 'text' && response.option) {
-                    answeredCount++;
-                }
-            }
-        });
-
-        const progressPercent = (answeredCount / questions.length) * 100;
-        document.getElementById('progressFill').style.width = progressPercent + '%';
-    }
-
-    async function saveProgress() {
-        const { questions, type } = getCurrentQuestions();
-        const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
-        const questionType = type === 'weekly' ? 'Weekly Review' : 
-                           type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
-
-        // Validate question set
-        const englishQuestionSet = englishQuestions[type];
-        const isValid = questions.every((q, i) => q.text === englishQuestionSet[i].hindiText);
-        if (!isValid) {
-            console.error('Question set mismatch');
-            alert('त्रुटि: प्रश्न सेट में असंगति है।');
-            return;
-        }
-
-        // Compile all responses in English for backend
-        const compiledData = {
-            date: today,
-            type: questionType,
-            language: 'hindi',
-            timestamp: new Date().toISOString(),
-            responses: {}
-        };
-
-        questions.forEach((question, index) => {
-            const response = responses[index];
-            if (response && (response.option || response.text)) {
-                const englishQuestion = englishQuestionSet[index].englishText;
-                let answer = '';
-                
-                if (response.option) {
-                    const hindiOptionIndex = question.options.indexOf(response.option);
-                    if (hindiOptionIndex !== -1 && englishQuestionSet[index].options[hindiOptionIndex]) {
-                        answer = englishQuestionSet[index].options[hindiOptionIndex];
-                    }
-                } else if (response.text) {
-                    answer = response.text;
-                }
-
-                if (!answer && !response.followupText && (!response.photos || response.photos.length === 0)) {
-                    console.warn(`Skipping question ${index + 1}: No valid fields`);
-                    return;
-                }
-
-                compiledData.responses[englishQuestion] = {
-                    answer: answer,
-                    followupText: response.followupText || '',
-                    photos: (response.photos || []).map(photo => ({ url: photo.url }))
-                };
-            }
-        });
-
-        if (Object.keys(compiledData.responses).length === 0) {
-            alert('कोई जवाब सहेजने के लिए नहीं है। कृपया कम से कम एक प्रश्न का उत्तर दें।');
-            return;
-        }
-
-        console.log('Compiled data to send:', JSON.stringify(compiledData, null, 2));
-
-        try {
-            const response = await fetch('/save_responses', {  // FIXED: Use /save_responses (not /api/)
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(compiledData)
+                html += `</div>`;
             });
 
-            // FIXED: Better error handling for non-JSON responses
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server error response:', errorText);
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            container.innerHTML = html;
+            updateProgress();
+        }
+
+        function selectOption(questionIndex, option, element) {
+            const { questions } = getCurrentQuestions();
+            const question = questions[questionIndex];
+
+            if (question.images) {
+                const images = element.closest('.question-card').querySelectorAll('.option-image');
+                images.forEach(img => img.classList.remove('selected'));
+                if (element.classList.contains('option-image')) {
+                    element.classList.add('selected');
+                } else {
+                    const selectedImage = element.closest('.question-card').querySelector(`.option-image[data-option="${option}"]`);
+                    if (selectedImage) {
+                        selectedImage.classList.add('selected');
+                    }
+                }
+            } else {
+                const buttons = element.parentElement.querySelectorAll('.option-btn');
+                buttons.forEach(btn => btn.classList.remove('selected'));
+                if (element.classList.contains('option-btn')) {
+                    element.classList.add('selected');
+                }
             }
 
-            const result = await response.json();
-            console.log('Responses saved successfully:', compiledData);
-            const successMsg = document.getElementById('successMessage');
-            successMsg.classList.add('show');
-            setTimeout(() => {
-                successMsg.classList.remove('show');
-            }, 3000);
+            saveResponse(questionIndex, 'option', option);
 
-            const saveBtn = document.getElementById('saveBtn');
-            saveBtn.disabled = true;
-            saveBtn.textContent = translations.hindi.savedMessage;
-            setTimeout(() => {
-                saveBtn.disabled = false;
-                saveBtn.textContent = translations.hindi.saveButton;
-            }, 2000);
+            const followup = document.getElementById(`followup_${questionIndex}`);
+            if (followup) {
+                const shouldShow = (question.followup === 'yes' && option === 'हाँ') ||
+                                 (question.followup === 'no' && option === 'नहीं');
+
+                if (shouldShow) {
+                    followup.classList.add('show');
+                } else {
+                    followup.classList.remove('show');
+                    saveResponse(questionIndex, 'followupText', '');
+                }
+            }
+
+            if (question.photo === 'followup') {
+                const photoSection = document.getElementById(`photoSection_${questionIndex}`);
+                if (photoSection) {
+                    const shouldShow = (question.followup === 'yes' && option === 'हाँ') ||
+                                      (question.followup === 'no' && option === 'नहीं');
+                    photoSection.style.display = shouldShow ? 'block' : 'none';
+                    if (!shouldShow) {
+                        responses[questionIndex].photos = [];
+                        renderPhotos(questionIndex);
+                    }
+                }
+            }
+
+            updateProgress();
+        }
+
+        function saveResponse(questionIndex, type, value) {
+            if (!responses[questionIndex]) {
+                responses[questionIndex] = {};
+            }
+            responses[questionIndex][type] = value;
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const { questions } = getCurrentQuestions();
+            let answeredCount = 0;
+
+            questions.forEach((question, index) => {
+                const response = responses[index];
+                if (response) {
+                    if (question.type === 'text' && response.text) {
+                        answeredCount++;
+                    } else if (question.type !== 'text' && response.option) {
+                        answeredCount++;
+                    }
+                }
+            });
+
+            const progressPercent = (answeredCount / questions.length) * 100;
+            document.getElementById('progressFill').style.width = progressPercent + '%';
+        }
+
+        async function checkIfSubmitted() {
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
+            const { type } = getCurrentQuestions();
+            const questionType = type === 'weekly' ? 'Weekly Review' : 
+                                type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
 
             const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
-            savedEntries.push(compiledData);
-            localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
-        } catch (error) {
-            console.error('Error saving responses:', error);
-            alert('डेटा सहेजने में त्रुटि: ' + error.message);
-        }
-    }
+            const todayEntry = savedEntries.find(entry => entry.date === today && entry.type === questionType);
 
-    // FIXED: Updated loadSavedResponses function
-    async function loadSavedResponses() {
-        const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
-        const { type } = getCurrentQuestions();
-        const questionType = type === 'weekly' ? 'Weekly Review' : 
-                           type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
-        
-        const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
-        const todayEntry = savedEntries.find(entry => entry.date === today && entry.type === questionType);
-        
-        if (todayEntry) {
-            console.log('Loading saved responses:', todayEntry);
-            responses = {};
-            
-            const { questions } = getCurrentQuestions();  // FIXED: Get questions here
+            if (todayEntry) {
+                return true;
+            }
+
+            try {
+                const response = await fetch('/check_submission', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date: today, type: questionType })
+                });
+                const result = await response.json();
+                return result.submitted;
+            } catch (error) {
+                console.error('Error checking submission status:', error);
+                return !!todayEntry;
+            }
+        }
+
+        async function saveProgress() {
+            const { questions, type } = getCurrentQuestions();
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
+            const questionType = type === 'weekly' ? 'Weekly Review' : 
+                                type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
+
+            const isSubmitted = await checkIfSubmitted();
+            if (isSubmitted) {
+                alert('आपने आज के लिए पहले ही जवाब जमा कर दिए हैं।');
+                return;
+            }
+
             const englishQuestionSet = englishQuestions[type];
-            Object.entries(todayEntry.responses).forEach(([englishQuestion, resp]) => {
-                const questionIndex = englishQuestionSet.findIndex(q => q.englishText === englishQuestion);
-                if (questionIndex !== -1) {
-                    let hindiOption = '';
-                    if (resp.answer && englishQuestionSet[questionIndex].options.includes(resp.answer)) {
-                        const englishIndex = englishQuestionSet[questionIndex].options.indexOf(resp.answer);
-                        const hindiQuestion = questions[questionIndex];  // FIXED: Use questions from getCurrentQuestions
-                        if (hindiQuestion.options[englishIndex]) {
-                            hindiOption = hindiQuestion.options[englishIndex];
-                        }
-                    }
+            const isValid = questions.every((q, i) => q.text === englishQuestionSet[i].hindiText);
+            if (!isValid) {
+                console.error('Question set mismatch');
+                alert('त्रुटि: प्रश्न सेट में असंगति है।');
+                return;
+            }
+
+            const compiledData = {
+                date: today,
+                type: questionType,
+                language: 'hindi',
+                timestamp: new Date().toISOString(),
+                responses: {}
+            };
+
+            questions.forEach((question, index) => {
+                const response = responses[index];
+                if (response && (response.option || response.text)) {
+                    const englishQuestion = englishQuestionSet[index].englishText;
+                    let answer = '';
                     
-                    responses[questionIndex] = {
-                        option: hindiOption || resp.answer,
-                        followupText: resp.followupText,
-                        photos: resp.photos || []
+                    if (response.option) {
+                        const hindiOptionIndex = question.options.indexOf(response.option);
+                        if (hindiOptionIndex !== -1 && englishQuestionSet[index].options[hindiOptionIndex]) {
+                            answer = englishQuestionSet[index].options[hindiOptionIndex];
+                        }
+                    } else if (response.text) {
+                        answer = response.text;
+                    }
+
+                    if (!answer && !response.followupText && (!response.photos || response.photos.length === 0)) {
+                        console.warn(`Skipping question ${index + 1}: No valid fields`);
+                        return;
+                    }
+
+                    compiledData.responses[englishQuestion] = {
+                        answer: answer,
+                        followupText: response.followupText || '',
+                        photos: (response.photos || []).map(photo => ({ url: photo.url }))
                     };
                 }
             });
-            
-            renderAllQuestions();
-            updateProgress();
 
-            // FIXED: Use questions from getCurrentQuestions
-            Object.entries(responses).forEach(([index, response]) => {
-                if (response.option) {
-                    if (questions[index] && questions[index].images) {
-                        const image = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-image[data-option="${response.option}"]`);
-                        if (image) {
-                            image.classList.add('selected');
+            if (Object.keys(compiledData.responses).length === 0) {
+                alert('कोई जवाब सहेजने के लिए नहीं है। कृपया कम से कम एक प्रश्न का उत्तर दें।');
+                return;
+            }
+
+            console.log('Compiled data to send:', JSON.stringify(compiledData, null, 2));
+
+            try {
+                const response = await fetch('/save_responses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(compiledData)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('Responses saved successfully:', compiledData);
+                const successMsg = document.getElementById('successMessage');
+                successMsg.classList.add('show');
+                setTimeout(() => {
+                    successMsg.classList.remove('show');
+                }, 3000);
+
+                const saveBtn = document.getElementById('saveBtn');
+                saveBtn.disabled = true;
+                saveBtn.textContent = translations.hindi.savedMessage;
+                setTimeout(() => {
+                    document.getElementById('progressBar').style.display = 'none';
+                    document.getElementById('questionsContainer').style.display = 'none';
+                    saveBtn.style.display = 'none';
+                    const thankYouMsg = document.getElementById('thankYouMessage');
+                    thankYouMsg.classList.add('show');
+                }, 2000);
+
+                const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
+                savedEntries.push(compiledData);
+                localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
+            } catch (error) {
+                console.error('Error saving responses:', error);
+                alert('डेटा सहेजने में त्रुटि: ' + error.message);
+            }
+        }
+
+        async function loadSavedResponses() {
+            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
+            const { type } = getCurrentQuestions();
+            const questionType = type === 'weekly' ? 'Weekly Review' : 
+                               type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
+            
+            const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
+            const todayEntry = savedEntries.find(entry => entry.date === today && entry.type === questionType);
+            
+            if (todayEntry) {
+                console.log('Loading saved responses:', todayEntry);
+                responses = {};
+                
+                const { questions } = getCurrentQuestions();
+                const englishQuestionSet = englishQuestions[type];
+                Object.entries(todayEntry.responses).forEach(([englishQuestion, resp]) => {
+                    const questionIndex = englishQuestionSet.findIndex(q => q.englishText === englishQuestion);
+                    if (questionIndex !== -1) {
+                        let hindiOption = '';
+                        if (resp.answer && englishQuestionSet[questionIndex].options.includes(resp.answer)) {
+                            const englishIndex = englishQuestionSet[questionIndex].options.indexOf(resp.answer);
+                            const hindiQuestion = questions[questionIndex];
+                            if (hindiQuestion.options[englishIndex]) {
+                                hindiOption = hindiQuestion.options[englishIndex];
+                            }
                         }
-                    } else {
-                        const button = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-btn[data-option="${response.option}"]`);
-                        if (button) {
-                            button.classList.add('selected');
+                        
+                        responses[questionIndex] = {
+                            option: hindiOption || resp.answer,
+                            followupText: resp.followupText,
+                            photos: resp.photos || []
+                        };
+                    }
+                });
+                
+                renderAllQuestions();
+                updateProgress();
+
+                Object.entries(responses).forEach(([index, response]) => {
+                    if (response.option) {
+                        if (questions[index] && questions[index].images) {
+                            const image = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-image[data-option="${response.option}"]`);
+                            if (image) {
+                                image.classList.add('selected');
+                            }
+                        } else {
+                            const button = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-btn[data-option="${response.option}"]`);
+                            if (button) {
+                                button.classList.add('selected');
+                            }
                         }
                     }
-                }
-                if (response.followupText) {
-                    const followupInput = document.getElementById(`followupText_${index}`);
-                    if (followupInput) {
-                        followupInput.value = response.followupText;
+                    if (response.followupText) {
+                        const followupInput = document.getElementById(`followupText_${index}`);
+                        if (followupInput) {
+                            followupInput.value = response.followupText;
+                        }
                     }
-                }
-                if (response.text) {
-                    const textInput = document.getElementById(`textResponse_${index}`);
-                    if (textInput) {
-                        textInput.value = response.text;
+                    if (response.text) {
+                        const textInput = document.getElementById(`textResponse_${index}`);
+                        if (textInput) {
+                            textInput.value = response.text;
+                        }
                     }
-                }
-                if (response.photos && response.photos.length > 0) {
-                    renderPhotos(index);
+                    if (response.photos && response.photos.length > 0) {
+                        renderPhotos(index);
+                    }
+                });
+            }
+        }
+
+        function init() {
+            updateDateInfo();
+            initSpeechRecognition();
+
+            checkIfSubmitted().then(isSubmitted => {
+                if (isSubmitted) {
+                    document.getElementById('progressBar').style.display = 'none';
+                    document.getElementById('questionsContainer').style.display = 'none';
+                    document.getElementById('saveBtn').style.display = 'none';
+                    const thankYouMsg = document.getElementById('thankYouMessage');
+                    thankYouMsg.classList.add('show');
+                } else {
+                    loadSavedResponses();
+                    renderAllQuestions();
                 }
             });
         }
-    }
 
-    function init() {
-        updateDateInfo();
-        initSpeechRecognition();
-        loadSavedResponses();
-        renderAllQuestions();
-    }
-
-    window.addEventListener('DOMContentLoaded', init);
-</script>
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
