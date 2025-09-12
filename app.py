@@ -1,17 +1,16 @@
-# api/index.py (for Vercel serverless)
-
 from flask import Flask, request, jsonify
 from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.query_api import QueryApi
+from influxdb_client.client.write_api import WriteApi
 import os
 from dotenv import load_dotenv
 import json
-import dateutil.parser
 import cloudinary
 import cloudinary.uploader
+import base64
+from io import BytesIO
 from datetime import datetime
+import dateutil.parser
 from zoneinfo import ZoneInfo
-import pytz  # Added for timezone handling
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -36,9 +35,8 @@ CLOUDINARY_UPLOAD_PRESET = os.getenv('CLOUDINARY_UPLOAD_PRESET', 'smart_agri_pre
 # Initialize InfluxDB client
 influx_client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
 write_api = influx_client.write_api()
-query_api = influx_client.query_api()
 
-# Expected English questions for validation
+# Expected English questions for validation (backend stores in English)
 EXPECTED_QUESTIONS = {
     'Day 1 - Watering & Health': [
         'Did you water the plants today?',
@@ -69,6 +67,7 @@ EXPECTED_QUESTIONS = {
     ]
 }
 
+# FIXED: Custom 404 handler that returns JSON
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404
@@ -84,10 +83,7 @@ def serve_static(filename):
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
     try:
-        # Explicit JSON parsing for Vercel
-        if not request.is_json:
-            return jsonify({'error': 'Content-Type must be application/json'}), 400
-        data = request.get_json(force=True)  # Force parse even if malformed
+        data = request.json
         image_data = data.get('image')
         question_id = data.get('question_id')
         timestamp = data.get('timestamp')
@@ -95,14 +91,17 @@ def upload_image():
         if not image_data or not question_id:
             return jsonify({'error': 'Missing image or question_id'}), 400
 
+        # Extract base64 data (remove "data:image/jpeg;base64," prefix)
         if ',' in image_data:
             image_data = image_data.split(',')[1]
         else:
             return jsonify({'error': 'Invalid base64 image data'}), 400
 
+        # Create a safe public_id
         safe_timestamp = timestamp.replace(':', '-').replace('.', '-')
         public_id = f"smart_agri/q{question_id}_{safe_timestamp}"
 
+        # Upload to Cloudinary
         try:
             result = cloudinary.uploader.upload(
                 f"data:image/jpeg;base64,{image_data}",
@@ -120,41 +119,6 @@ def upload_image():
         print(f"Server error: {str(e)}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
-@app.route('/check_submission', methods=['POST'])
-def check_submission():
-    try:
-        data = request.json
-        date = data.get('date')
-        question_type = data.get('type')
-
-        if not date or not question_type:
-            return jsonify({'error': 'Missing date or type'}), 400
-
-        # Query InfluxDB to check if responses exist for the given date and type
-        query = f'''
-        from(bucket: "{INFLUXDB_BUCKET}")
-            |> range(start: {date}T00:00:00Z, stop: {date}T23:59:59Z)
-            |> filter(fn: (r) => r["_measurement"] == "Vimal_Task")
-            |> filter(fn: (r) => r["type"] == "{question_type}")
-            |> count()
-        '''
-        result = query_api.query(query=query, org=INFLUXDB_ORG)
-
-        # Check if any records were found
-        submitted = False
-        for table in result:
-            for record in table.records:
-                if record.get_value() > 0:
-                    submitted = True
-                    break
-            if submitted:
-                break
-
-        return jsonify({'submitted': submitted}), 200
-    except Exception as e:
-        print(f"Error checking submission: {str(e)}")
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
-
 @app.route('/save_responses', methods=['POST'])
 def save_responses():
     try:
@@ -164,7 +128,7 @@ def save_responses():
         data = request.json
         date = data.get('date')
         question_type = data.get('type')
-        language = data.get('language', 'hindi')
+        language = data.get('language', 'hindi')  # Default to Hindi
         responses = data.get('responses')
         timestamp = data.get('timestamp')
 
@@ -174,49 +138,22 @@ def save_responses():
             print(f"Error: question_type is None or missing")
             return jsonify({'error': 'question_type is missing or invalid'}), 400
 
-        # IST timezone handling
-        ist = pytz.timezone('Asia/Kolkata')
-        date_obj = datetime.strptime(date, '%Y-%m-%d').replace(tzinfo=ist)
-        start_ist = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_ist = date_obj.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-        start_utc = start_ist.astimezone(pytz.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
-        end_utc = end_ist.astimezone(pytz.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-        # Updated query with UTC bounds from IST
-        query = f'''
-        from(bucket: "{INFLUXDB_BUCKET}")
-            |> range(start: {start_utc}, stop: {end_utc})
-            |> filter(fn: (r) => r["_measurement"] == "Vimal_Task")
-            |> filter(fn: (r) => r["type"] == "{question_type}")
-            |> count()
-        '''
-        result = query_api.query(query=query, org=INFLUXDB_ORG)
-        submitted = False
-        for table in result:
-            for record in table.records:
-                if record.get_value() > 0:
-                    submitted = True
-                    break
-            if submitted:
-                break
-
-        if submitted:
-            return jsonify({'error': 'Responses already submitted for this date and type'}), 400
-
-        # Validate questions
+        # Validate questions against expected English questions
         received_questions = list(responses.keys())
         expected_questions = EXPECTED_QUESTIONS.get(question_type, [])
         if len(received_questions) > len(expected_questions):
+            # Allow partial responses
             received_questions = received_questions[:len(expected_questions)]
         
         missing_questions = [q for q in received_questions if q not in expected_questions]
         if missing_questions:
             print(f"Warning: Some received questions don't match expected: {missing_questions}")
+            # Still proceed but log the warning
 
         print(f"Received responses: date={date}, type={question_type}, language={language}, timestamp={timestamp}")
         print(f"Number of responses: {len(responses)}")
 
+        # Convert ISO 8601 timestamp to Unix epoch nanoseconds
         try:
             parsed_time = dateutil.parser.isoparse(timestamp)
             timestamp_ns = int(parsed_time.timestamp() * 1_000_000_000)
@@ -224,10 +161,12 @@ def save_responses():
             print(f"Invalid timestamp format: {timestamp}, error: {str(e)}")
             return jsonify({'error': f'Invalid timestamp format: {timestamp}'}), 400
 
+        # Convert responses to InfluxDB Line Protocol
         lines = []
         valid_responses = 0
         
         for index, (question, response) in enumerate(responses.items()):
+            # Check if this is a valid question
             if question not in expected_questions:
                 print(f"Skipping invalid question: {question}")
                 continue
@@ -236,12 +175,14 @@ def save_responses():
             followup_text = response.get('followupText', '')
             photos_list = response.get('photos', [])
             
+            # Skip if no meaningful data
             if not answer and not followup_text and not photos_list:
                 print(f"Skipping question {index + 1}: No meaningful data")
                 continue
 
             valid_responses += 1
             
+            # Escape special characters for InfluxDB Line Protocol
             def escape_field(value):
                 if isinstance(value, str):
                     return value.replace('\\', '\\\\').replace('"', '\\"').replace(',', '\\,').replace(' ', '\\ ').replace('=', '\\=')
@@ -256,10 +197,12 @@ def save_responses():
             escaped_answer = escape_field(answer)
             escaped_followup_text = escape_field(followup_text)
             
+            # Handle photos
             photos_urls = [photo.get('url', '') for photo in photos_list if photo.get('url')]
             escaped_photos = json.dumps([{'url': url} for url in photos_urls]) if photos_urls else '[]'
             escaped_photos = escape_field(escaped_photos)
 
+            # Build fields
             fields = []
             if escaped_answer:
                 fields.append(f'answer="{escaped_answer}"')
@@ -269,12 +212,14 @@ def save_responses():
                 fields.append(f'photos="{escaped_photos}"')
             fields.append(f'question="{escaped_question}"')
 
+            # Build tags - escape spaces in tag values
             tag_parts = []
             tag_parts.append(f"date={escape_tag(date)}")
             tag_parts.append(f"type={escape_tag(question_type)}")
             tag_parts.append(f"language={escape_tag(language)}")
             tag_parts.append(f"question_id=q{index + 1}")
 
+            # Construct Line Protocol
             line = f'Vimal_Task,{",".join(tag_parts)} {",".join(fields)} {timestamp_ns}'
             lines.append(line)
             print(f"Generated line for q{index + 1}: {line}")
@@ -285,6 +230,7 @@ def save_responses():
 
         print(f"Prepared {len(lines)} valid data points for InfluxDB")
 
+        # Write to InfluxDB
         try:
             write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=lines)
             print(f"Successfully wrote {len(lines)} records to InfluxDB bucket '{INFLUXDB_BUCKET}'")
