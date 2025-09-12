@@ -20,7 +20,9 @@
       "dest": "/app.py"
     }
   ],
-  "env": {
-    "NODE_VERSION": "18.x"
+  "functions": {
+    "app.py": {
+      "maxDuration": 30
+    }
   }
 }

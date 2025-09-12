@@ -1,3 +1,5 @@
+# api/index.py (for Vercel serverless)
+
 from flask import Flask, request, jsonify
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.query_api import QueryApi
@@ -9,6 +11,7 @@ import cloudinary
 import cloudinary.uploader
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import pytz  # Added for timezone handling
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -81,7 +84,10 @@ def serve_static(filename):
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
     try:
-        data = request.json
+        # Explicit JSON parsing for Vercel
+        if not request.is_json:
+            return jsonify({'error': 'Content-Type must be application/json'}), 400
+        data = request.get_json(force=True)  # Force parse even if malformed
         image_data = data.get('image')
         question_id = data.get('question_id')
         timestamp = data.get('timestamp')
@@ -168,10 +174,19 @@ def save_responses():
             print(f"Error: question_type is None or missing")
             return jsonify({'error': 'question_type is missing or invalid'}), 400
 
-        # Check if responses already exist for this date and type
+        # IST timezone handling
+        ist = pytz.timezone('Asia/Kolkata')
+        date_obj = datetime.strptime(date, '%Y-%m-%d').replace(tzinfo=ist)
+        start_ist = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_ist = date_obj.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        start_utc = start_ist.astimezone(pytz.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
+        end_utc = end_ist.astimezone(pytz.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        # Updated query with UTC bounds from IST
         query = f'''
         from(bucket: "{INFLUXDB_BUCKET}")
-            |> range(start: {date}T00:00:00Z, stop: {date}T23:59:59Z)
+            |> range(start: {start_utc}, stop: {end_utc})
             |> filter(fn: (r) => r["_measurement"] == "Vimal_Task")
             |> filter(fn: (r) => r["type"] == "{question_type}")
             |> count()
@@ -291,4 +306,3 @@ if __name__ == '__main__':
     print("Starting Farm Tracker API...")
     print(f"Serving static files from: {os.path.abspath('static')}")
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
-

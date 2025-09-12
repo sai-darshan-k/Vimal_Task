@@ -839,44 +839,55 @@
             }
             responses[questionIndex].photos = responses[questionIndex].photos || [];
 
-            for (const file of files) {
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    await new Promise(resolve => {
-                        reader.onload = async function(e) {
-                            const imageData = e.target.result;
-                            try {
-                                const response = await fetch('/upload_image', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        image: imageData,
-                                        question_id: `q${questionIndex + 1}`,
-                                        timestamp: new Date().toISOString()
-                                    })
-                                });
-                                const result = await response.json();
-                                if (response.ok) {
-                                    responses[questionIndex].photos.push({
-                                        url: result.image_url
-                                    });
-                                    renderPhotos(questionIndex);
-                                    updateProgress();
-                                } else {
-                                    console.error('Image upload failed:', result.error);
-                                    alert('फोटो अपलोड करने में त्रुटि: ' + result.error);
-                                }
-                            } catch (error) {
-                                console.error('Error uploading image:', error);
-                                alert('फोटो अपलोड करने में त्रुटि: ' + error.message);
-                            }
-                            resolve();
-                        };
-                        reader.readAsDataURL(file);
-                    });
+            // Process uploads in parallel for speed
+            const uploadPromises = files.map(file => {
+                if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) { // 5MB limit
+                    console.warn('Skipping invalid/large file:', file.name);
+                    return Promise.resolve();
                 }
-            }
 
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        const imageData = e.target.result.split(',')[1]; // Extract base64
+                        try {
+                            const response = await fetch('/upload_image', {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json' // Ensure JSON response
+                                },
+                                body: JSON.stringify({
+                                    image: imageData,
+                                    question_id: `q${questionIndex + 1}`,
+                                    timestamp: new Date().toISOString()
+                                })
+                            });
+
+                            if (!response.ok) {
+                                const errorText = await response.text(); // Fallback to text if not JSON
+                                console.error('Upload failed:', response.status, errorText);
+                                alert('फोटो अपलोड त्रुटि: ' + (response.status === 413 ? 'फ़ाइल बहुत बड़ी है' : errorText));
+                                return resolve();
+                            }
+
+                            const result = await response.json();
+                            responses[questionIndex].photos.push({ url: result.image_url });
+                            resolve();
+                        } catch (error) {
+                            console.error('Upload error:', error);
+                            alert('फोटो अपलोड त्रुटि: ' + error.message);
+                            resolve(); // Don't block other uploads
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            await Promise.all(uploadPromises);
+            renderPhotos(questionIndex);
+            updateProgress();
             input.value = '';
         }
 
