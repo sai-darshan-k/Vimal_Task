@@ -814,77 +814,6 @@
             });
         }
 
-        // Image compression function
-        async function compressImage(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.src = e.target.result;
-
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        
-                        // Set max dimensions to maintain clarity while reducing size
-                        const MAX_WIDTH = 1920; // Full HD width
-                        const MAX_HEIGHT = 1080; // Full HD height
-                        let width = img.width;
-                        let height = img.height;
-
-                        // Maintain aspect ratio
-                        if (width > height) {
-                            if (width > MAX_WIDTH) {
-                                height = Math.round((height * MAX_WIDTH) / width);
-                                width = MAX_WIDTH;
-                            }
-                        } else {
-                            if (height > MAX_HEIGHT) {
-                                width = Math.round((width * MAX_HEIGHT) / height);
-                                height = MAX_HEIGHT;
-                            }
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-
-                        // Draw image on canvas
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        // Start with high quality and reduce until file size is under 500KB
-                        let quality = 0.9;
-                        const targetSize = 500 * 1024; // 500KB in bytes
-                        let dataUrl;
-
-                        function tryCompress() {
-                            dataUrl = canvas.toDataURL('image/jpeg', quality);
-                            const byteString = atob(dataUrl.split(',')[1]);
-                            const byteLength = byteString.length;
-
-                            if (byteLength > targetSize && quality > 0.1) {
-                                quality -= 0.1;
-                                setTimeout(tryCompress, 0); // Recursive call with lower quality
-                            } else {
-                                resolve(dataUrl);
-                            }
-                        }
-
-                        tryCompress();
-                    };
-
-                    img.onerror = function() {
-                        reject(new Error('Failed to load image'));
-                    };
-                };
-
-                reader.onerror = function() {
-                    reject(new Error('Failed to read file'));
-                };
-
-                reader.readAsDataURL(file);
-            });
-        }
-
         async function handlePhotoUpload(input, questionIndex) {
             const files = Array.from(input.files);
             if (!files.length) return;
@@ -898,17 +827,19 @@
 
             for (const file of files) {
                 if (file.type.startsWith('image/')) {
-                    try {
-                        const compressedDataUrl = await compressImage(file);
-                        responses[questionIndex].photos.push({
-                            data: compressedDataUrl
-                        });
-                        renderPhotos(questionIndex);
-                        updateProgress();
-                    } catch (error) {
-                        console.error('Image compression failed:', error);
-                        alert('फोटो संपीड़न में त्रुटि: ' + error.message);
-                    }
+                    const reader = new FileReader();
+                    await new Promise(resolve => {
+                        reader.onload = function(e) {
+                            const imageData = e.target.result;
+                            responses[questionIndex].photos.push({
+                                data: imageData
+                            });
+                            renderPhotos(questionIndex);
+                            updateProgress();
+                            resolve();
+                        };
+                        reader.readAsDataURL(file);
+                    });
                 }
             }
 

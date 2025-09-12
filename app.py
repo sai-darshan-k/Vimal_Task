@@ -251,4 +251,6 @@ def save_responses():
 if __name__ == '__main__':
     print("Starting Farm Tracker API...")
     print(f"Serving static files from: {os.path.abspath('static')}")
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
+    # Use port from env var for Render
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)  # Disable debug in prod
