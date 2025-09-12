@@ -476,7 +476,7 @@
                 ✅ आपका जवाब सफलतापूर्वक सहेजा गया है!
             </div>
             <div class="thank-you-message" id="thankYouMessage">
-                धन्यवाद, विमल। कल फिर मिलते हैं! 🌾
+                धन्यवाद, विमल। फिर से शुरू करने के लिए पेज रिफ्रेश करें! 🌾
             </div>
             <div class="progress-bar" id="progressBar">
                 <div class="progress-fill" id="progressFill"></div>
@@ -837,7 +837,7 @@
             if (!responses[questionIndex]) {
                 responses[questionIndex] = {};
             }
-            responses[questionIndex].photos = [];
+            responses[questionIndex].photos = responses[questionIndex].photos || [];
 
             for (const file of files) {
                 if (file.type.startsWith('image/')) {
@@ -971,8 +971,7 @@
 
                 if (question.type === 'text') {
                     html += `
-                        <div class="text-only-input">
-                            <textarea class="text-input" placeholder="अपने अवलोकन साझा करें..." id="textResponse_${index}" oninput="saveResponse(${index}, 'text', this.value)"></textarea>
+                       
                             ${question.followup ? `
                                 <div class="followup show" id="followup_${index}">
                                     <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
@@ -984,12 +983,7 @@
                                     ` : ''}
                                 </div>
                             ` : ''}
-                            ${question.voice ? `
-                                <div class="voice-controls">
-                                    <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
-                                    <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
-                                </div>
-                            ` : ''}
+
                         </div>
                     `;
                 } else {
@@ -1145,44 +1139,11 @@
             document.getElementById('progressFill').style.width = progressPercent + '%';
         }
 
-        async function checkIfSubmitted() {
-            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
-            const { type } = getCurrentQuestions();
-            const questionType = type === 'weekly' ? 'Weekly Review' : 
-                                type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
-
-            const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
-            const todayEntry = savedEntries.find(entry => entry.date === today && entry.type === questionType);
-
-            if (todayEntry) {
-                return true;
-            }
-
-            try {
-                const response = await fetch('/check_submission', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ date: today, type: questionType })
-                });
-                const result = await response.json();
-                return result.submitted;
-            } catch (error) {
-                console.error('Error checking submission status:', error);
-                return !!todayEntry;
-            }
-        }
-
         async function saveProgress() {
             const { questions, type } = getCurrentQuestions();
             const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
             const questionType = type === 'weekly' ? 'Weekly Review' : 
                                 type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
-
-            const isSubmitted = await checkIfSubmitted();
-            if (isSubmitted) {
-                alert('आपने आज के लिए पहले ही जवाब जमा कर दिए हैं।');
-                return;
-            }
 
             const englishQuestionSet = englishQuestions[type];
             const isValid = questions.every((q, i) => q.text === englishQuestionSet[i].hindiText);
@@ -1265,104 +1226,22 @@
                     saveBtn.style.display = 'none';
                     const thankYouMsg = document.getElementById('thankYouMessage');
                     thankYouMsg.classList.add('show');
+                    // Reset responses for new form on refresh
+                    responses = {};
+                    localStorage.removeItem('farmEntries'); // Clear local storage to allow new submission
                 }, 2000);
-
-                const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
-                savedEntries.push(compiledData);
-                localStorage.setItem('farmEntries', JSON.stringify(savedEntries));
             } catch (error) {
                 console.error('Error saving responses:', error);
                 alert('डेटा सहेजने में त्रुटि: ' + error.message);
             }
         }
 
-        async function loadSavedResponses() {
-            const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
-            const { type } = getCurrentQuestions();
-            const questionType = type === 'weekly' ? 'Weekly Review' : 
-                               type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
-            
-            const savedEntries = JSON.parse(localStorage.getItem('farmEntries') || '[]');
-            const todayEntry = savedEntries.find(entry => entry.date === today && entry.type === questionType);
-            
-            if (todayEntry) {
-                console.log('Loading saved responses:', todayEntry);
-                responses = {};
-                
-                const { questions } = getCurrentQuestions();
-                const englishQuestionSet = englishQuestions[type];
-                Object.entries(todayEntry.responses).forEach(([englishQuestion, resp]) => {
-                    const questionIndex = englishQuestionSet.findIndex(q => q.englishText === englishQuestion);
-                    if (questionIndex !== -1) {
-                        let hindiOption = '';
-                        if (resp.answer && englishQuestionSet[questionIndex].options.includes(resp.answer)) {
-                            const englishIndex = englishQuestionSet[questionIndex].options.indexOf(resp.answer);
-                            const hindiQuestion = questions[questionIndex];
-                            if (hindiQuestion.options[englishIndex]) {
-                                hindiOption = hindiQuestion.options[englishIndex];
-                            }
-                        }
-                        
-                        responses[questionIndex] = {
-                            option: hindiOption || resp.answer,
-                            followupText: resp.followupText,
-                            photos: resp.photos || []
-                        };
-                    }
-                });
-                
-                renderAllQuestions();
-                updateProgress();
-
-                Object.entries(responses).forEach(([index, response]) => {
-                    if (response.option) {
-                        if (questions[index] && questions[index].images) {
-                            const image = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-image[data-option="${response.option}"]`);
-                            if (image) {
-                                image.classList.add('selected');
-                            }
-                        } else {
-                            const button = document.querySelector(`#questionsContainer .question-card:nth-child(${parseInt(index) + 1}) .option-btn[data-option="${response.option}"]`);
-                            if (button) {
-                                button.classList.add('selected');
-                            }
-                        }
-                    }
-                    if (response.followupText) {
-                        const followupInput = document.getElementById(`followupText_${index}`);
-                        if (followupInput) {
-                            followupInput.value = response.followupText;
-                        }
-                    }
-                    if (response.text) {
-                        const textInput = document.getElementById(`textResponse_${index}`);
-                        if (textInput) {
-                            textInput.value = response.text;
-                        }
-                    }
-                    if (response.photos && response.photos.length > 0) {
-                        renderPhotos(index);
-                    }
-                });
-            }
-        }
-
         function init() {
             updateDateInfo();
             initSpeechRecognition();
-
-            checkIfSubmitted().then(isSubmitted => {
-                if (isSubmitted) {
-                    document.getElementById('progressBar').style.display = 'none';
-                    document.getElementById('questionsContainer').style.display = 'none';
-                    document.getElementById('saveBtn').style.display = 'none';
-                    const thankYouMsg = document.getElementById('thankYouMessage');
-                    thankYouMsg.classList.add('show');
-                } else {
-                    loadSavedResponses();
-                    renderAllQuestions();
-                }
-            });
+            // Always render the form anew on page load
+            responses = {};
+            renderAllQuestions();
         }
 
         window.addEventListener('DOMContentLoaded', init);
