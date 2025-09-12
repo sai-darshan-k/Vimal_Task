@@ -941,7 +941,7 @@
                 if (question.type === 'text') {
                     html += `
                         <div class="text-only-input">
-                            <textarea class="text-input" placeholder="अपने अवलोकन साझा करें..." id="textResponse_${index}" oninput="saveResponse(${index}, 'text', this.value)"></textarea>
+                           
                             ${question.followup ? `
                                 <div class="followup show" id="followup_${index}">
                                     <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
@@ -953,12 +953,7 @@
                                     ` : ''}
                                 </div>
                             ` : ''}
-                            ${question.followup ? '' : (question.voice ? `
-                                <div class="voice-controls">
-                                    <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
-                                    <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
-                                </div>
-                            ` : '')}
+ 
                         </div>
                     `;
                 } else {
