@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.write_api import WriteApi
+from influxdb_client.client.write_api import WriteApi, SYNCHRONOUS
+from influxdb_client.client.query_api import QueryApi
 import os
 from dotenv import load_dotenv
 import json
@@ -11,6 +12,7 @@ from io import BytesIO
 from datetime import datetime
 import dateutil.parser
 from zoneinfo import ZoneInfo
+import traceback
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -34,7 +36,8 @@ CLOUDINARY_UPLOAD_PRESET = os.getenv('CLOUDINARY_UPLOAD_PRESET', 'smart_agri_pre
 
 # Initialize InfluxDB client
 influx_client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-write_api = influx_client.write_api()
+write_api = influx_client.write_api(write_options=SYNCHRONOUS)  # Synchronous writes for immediate errors
+query_api = influx_client.query_api()
 
 # Expected English questions for validation (backend stores in English)
 EXPECTED_QUESTIONS = {
@@ -67,7 +70,7 @@ EXPECTED_QUESTIONS = {
     ]
 }
 
-# FIXED: Custom 404 handler that returns JSON
+# Custom 404 handler that returns JSON
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404
@@ -99,7 +102,7 @@ def upload_image():
 
         # Create a safe public_id
         safe_timestamp = timestamp.replace(':', '-').replace('.', '-')
-        public_id = f"smart_agri/q{question_id}_{safe_timestamp}"
+        public_id = f"smart_agri/{question_id}_{safe_timestamp}"
 
         # Upload to Cloudinary
         try:
@@ -116,7 +119,8 @@ def upload_image():
 
         return jsonify({'image_url': image_url}), 200
     except Exception as e:
-        print(f"Server error: {str(e)}")
+        print(f"Server error in upload_image: {str(e)}")
+        traceback.print_exc()
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/save_responses', methods=['POST'])
@@ -142,13 +146,11 @@ def save_responses():
         received_questions = list(responses.keys())
         expected_questions = EXPECTED_QUESTIONS.get(question_type, [])
         if len(received_questions) > len(expected_questions):
-            # Allow partial responses
             received_questions = received_questions[:len(expected_questions)]
         
         missing_questions = [q for q in received_questions if q not in expected_questions]
         if missing_questions:
             print(f"Warning: Some received questions don't match expected: {missing_questions}")
-            # Still proceed but log the warning
 
         print(f"Received responses: date={date}, type={question_type}, language={language}, timestamp={timestamp}")
         print(f"Number of responses: {len(responses)}")
@@ -166,16 +168,14 @@ def save_responses():
         valid_responses = 0
         
         for index, (question, response) in enumerate(responses.items()):
-            # Check if this is a valid question
             if question not in expected_questions:
                 print(f"Skipping invalid question: {question}")
                 continue
                 
-            answer = response.get('answer', '')
-            followup_text = response.get('followupText', '')
+            answer = str(response.get('answer', ''))  # Ensure string type
+            followup_text = str(response.get('followupText', ''))  # Ensure string type
             photos_list = response.get('photos', [])
             
-            # Skip if no meaningful data
             if not answer and not followup_text and not photos_list:
                 print(f"Skipping question {index + 1}: No meaningful data")
                 continue
@@ -197,12 +197,11 @@ def save_responses():
             escaped_answer = escape_field(answer)
             escaped_followup_text = escape_field(followup_text)
             
-            # Handle photos
             photos_urls = [photo.get('url', '') for photo in photos_list if photo.get('url')]
             escaped_photos = json.dumps([{'url': url} for url in photos_urls]) if photos_urls else '[]'
             escaped_photos = escape_field(escaped_photos)
 
-            # Build fields
+            # Build fields (all strings for consistency)
             fields = []
             if escaped_answer:
                 fields.append(f'answer="{escaped_answer}"')
@@ -212,10 +211,10 @@ def save_responses():
                 fields.append(f'photos="{escaped_photos}"')
             fields.append(f'question="{escaped_question}"')
 
-            # Build tags - escape spaces in tag values
+            # Build tags (simplify type tag to reduce cardinality)
             tag_parts = []
             tag_parts.append(f"date={escape_tag(date)}")
-            tag_parts.append(f"type={escape_tag(question_type)}")
+            tag_parts.append(f"type={escape_tag(question_type.replace(' ', '_').replace('&', '_'))}")  # e.g., Day_2_Nutrients_Operations
             tag_parts.append(f"language={escape_tag(language)}")
             tag_parts.append(f"question_id=q{index + 1}")
 
@@ -230,27 +229,80 @@ def save_responses():
 
         print(f"Prepared {len(lines)} valid data points for InfluxDB")
 
-        # Write to InfluxDB
+        # Write to InfluxDB and verify
         try:
             write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=lines)
             print(f"Successfully wrote {len(lines)} records to InfluxDB bucket '{INFLUXDB_BUCKET}'")
+
+            # Verify write
+            query = f'''
+            from(bucket: "{INFLUXDB_BUCKET}")
+                |> range(start: -1m)
+                |> filter(fn: (r) => r["_measurement"] == "Vimal_Task")
+                |> filter(fn: (r) => r["date"] == "{date}")
+                |> limit(n: {len(lines)})
+            '''
+            tables = query_api.query(query=query, org=INFLUXDB_ORG)
+            if not tables:
+                print("Verification failed: No records found after write")
+                # Check for rejections
+                rejection_query = f'''
+                from(bucket: "_monitoring")
+                    |> range(start: -1h)
+                    |> filter(fn: (r) => r["_measurement"] == "rejected_points")
+                    |> filter(fn: (r) => r["bucket"] == "{INFLUXDB_BUCKET}")
+                    |> limit(n: 10)
+                '''
+                rejections = query_api.query(query=rejection_query, org=INFLUXDB_ORG)
+                if rejections:
+                    errors = [record["_value"] for table in rejections for record in table.records]
+                    print(f"Rejections found: {errors}")
+                    return jsonify({'error': f'Write rejected: {errors}'}), 500
+                return jsonify({'error': 'Write succeeded but data not found'}), 500
+
+            print(f"Verified {len(tables)} tables written")
             return jsonify({
                 'message': f'Responses saved successfully ({len(lines)} records)',
                 'records_written': len(lines)
             }), 200
         except Exception as e:
             print(f"InfluxDB write error: {str(e)}")
+            traceback.print_exc()
             return jsonify({'error': f'Failed to write to InfluxDB: {str(e)}'}), 500
             
     except Exception as e:
         print(f"Server error in save_responses: {str(e)}")
-        import traceback
         traceback.print_exc()
         return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+# New endpoint to debug rejections
+@app.route('/check_rejections', methods=['GET'])
+def check_rejections():
+    try:
+        query = f'''
+        from(bucket: "_monitoring")
+            |> range(start: -24h)
+            |> filter(fn: (r) => r["_measurement"] == "rejected_points")
+            |> filter(fn: (r) => r["bucket"] == "{INFLUXDB_BUCKET}")
+            |> limit(n: 100)
+        '''
+        tables = query_api.query(query=query, org=INFLUXDB_ORG)
+        rejections = [
+            {
+                'time': record['_time'],
+                'error': record['_value'],
+                'line': record.get('line', 'N/A')
+            }
+            for table in tables for record in table.records
+        ]
+        return jsonify({'rejections': rejections}), 200
+    except Exception as e:
+        print(f"Error checking rejections: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to check rejections: {str(e)}'}), 500
 
 if __name__ == '__main__':
     print("Starting Farm Tracker API...")
     print(f"Serving static files from: {os.path.abspath('static')}")
-    # Use port from env var for Render
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)  # Disable debug in prod
+    app.run(host='0.0.0.0', port=port, debug=False)
