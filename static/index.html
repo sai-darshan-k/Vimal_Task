@@ -530,7 +530,7 @@
                         options: ['हाँ', 'नहीं'], 
                         emoji: '🌱', 
                         followup: 'no', 
-                        photo: 'followup', 
+                        photo: 'no', 
                         audio: 'day1_q5.mp3',
                         englishText: 'Is the plant healthy today (your view)?',
                         englishOptions: ['Yes', 'No']
@@ -539,7 +539,6 @@
                         text: 'आज मौसम खराब रहा (तेज़ हवा/ओले/गर्मी)?', 
                         options: ['हाँ', 'नहीं'], 
                         emoji: '⛈️', 
-                        photo: 'yes', 
                         audio: 'day1_q6.mp3',
                         englishText: 'Any unusual weather (wind, hail, storm, excess heat)?',
                         englishOptions: ['Yes', 'No']
@@ -985,7 +984,7 @@
                         html += `</div>`;
                     }
 
-                    if (question.followup || question.voice) {
+                    if (question.followup || question.photo === 'no') {
                         html += `
                             <div class="followup" id="followup_${index}">
                                 <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
@@ -995,7 +994,7 @@
                                         <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
                                     </div>
                                 ` : ''}
-                                ${question.photo === 'followup' ? `
+                                ${question.photo === 'no' ? `
                                     <div class="photo-upload" id="photoSection_${index}" style="display: none;">
                                         <input type="file" id="photoInput_${index}" accept="image/*" multiple onchange="handlePhotoUpload(this, ${index})">
                                         <button class="photo-upload-btn" onclick="document.getElementById('photoInput_${index}').click()">
@@ -1060,13 +1059,26 @@
             const followup = document.getElementById(`followup_${questionIndex}`);
             if (followup) {
                 const shouldShow = (question.followup === 'yes' && option === 'हाँ') ||
-                                 (question.followup === 'no' && option === 'नहीं');
+                                 (question.followup === 'no' && option === 'नहीं') ||
+                                 (question.photo === 'no' && option === 'नहीं');
 
                 if (shouldShow) {
                     followup.classList.add('show');
                 } else {
                     followup.classList.remove('show');
                     saveResponse(questionIndex, 'followupText', '');
+                }
+            }
+
+            if (question.photo === 'no') {
+                const photoSection = document.getElementById(`photoSection_${questionIndex}`);
+                if (photoSection) {
+                    const shouldShow = option === 'नहीं';
+                    photoSection.style.display = shouldShow ? 'block' : 'none';
+                    if (!shouldShow) {
+                        responses[questionIndex].photos = [];
+                        renderPhotos(questionIndex);
+                    }
                 }
             }
 
