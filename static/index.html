@@ -840,6 +840,7 @@
                         };
                         reader.readAsDataURL(file);
                     });
+                    console.log(`Photo added for q${questionIndex + 1}: ${responses[questionIndex].photos.length} photos now`);
                 }
             }
 
@@ -952,12 +953,12 @@
                                     ` : ''}
                                 </div>
                             ` : ''}
-                            ${question.voice ? `
+                            ${question.followup ? '' : (question.voice ? `
                                 <div class="voice-controls">
                                     <button class="voice-btn" onclick="startVoiceInput(this)">🎤 आवाज़</button>
                                     <span style="font-size: 12px; color: #666;">बोलने के लिए टैप करें</span>
                                 </div>
-                            ` : ''}
+                            ` : '')}
                         </div>
                     `;
                 } else {
@@ -1104,7 +1105,7 @@
             questions.forEach((question, index) => {
                 const response = responses[index];
                 if (response) {
-                    if (question.type === 'text' && response.text) {
+                    if (question.type === 'text' && (response.text || response.followupText)) {
                         answeredCount++;
                     } else if (question.type !== 'text' && response.option) {
                         answeredCount++;
@@ -1135,6 +1136,7 @@
             // Upload photos to Cloudinary
             for (const [index, response] of Object.entries(responses)) {
                 if (response.photos && response.photos.length > 0) {
+                    console.log(`Uploading ${response.photos.length} photos for q${parseInt(index) + 1}`);
                     for (const photo of response.photos) {
                         if (photo.data && !photo.url) {
                             try {
@@ -1151,6 +1153,7 @@
                                 if (response.ok) {
                                     photo.url = result.image_url;
                                     delete photo.data; // Remove base64 data after upload
+                                    console.log(`Uploaded photo for q${parseInt(index) + 1}: ${photo.url}`);
                                 } else {
                                     console.error('Image upload failed:', result.error);
                                     alert('फोटो अपलोड करने में त्रुटि: ' + result.error);
@@ -1177,23 +1180,25 @@
 
             questions.forEach((question, index) => {
                 const response = responses[index];
-                if (response && (response.option || response.text)) {
+                if (response) {
                     const englishQuestion = englishQuestionSet[index].englishText;
                     let answer = '';
                     
-                    if (response.option) {
+                    if (question.type === 'text') {
+                        // For text questions, use text or followupText (or both)
+                        answer = (response.text || '') + (response.followupText ? ' ' + response.followupText : '');
+                        if (!answer.trim() && (!response.photos || response.photos.length === 0)) {
+                            console.warn(`Skipping text question ${index + 1}: No text or photos`);
+                            return;
+                        }
+                    } else if (response.option) {
                         const hindiOptionIndex = question.options.indexOf(response.option);
                         if (hindiOptionIndex !== -1 && englishQuestionSet[index].options[hindiOptionIndex]) {
                             answer = englishQuestionSet[index].options[hindiOptionIndex];
                         }
-                    } else if (response.text) {
-                        answer = response.text;
                     }
 
-                    if (!answer && !response.followupText && (!response.photos || response.photos.length === 0)) {
-                        console.warn(`Skipping question ${index + 1}: No valid fields`);
-                        return;
-                    }
+                    console.log(`Compiling q${index + 1} (${englishQuestion}): answer="${answer}", photos=${(response.photos || []).length}, followup="${response.followupText || ''}"`);
 
                     compiledData.responses[englishQuestion] = {
                         answer: answer,
