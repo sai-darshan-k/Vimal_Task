@@ -319,6 +319,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             margin-top: 30px;
+            position: relative;
         }
 
         .save-btn:hover {
@@ -331,6 +332,24 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        .save-btn.loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .success-message {
@@ -456,7 +475,7 @@
 
         <div class="content">
             <div class="success-message" id="successMessage">
-                ✅ आपका जवाब सफलतापूर्वक सहेजा गया है!
+                ✅ आपका जवाब सफलतापूर्वक सहेजा गया है! धन्यवाद विमल!
             </div>
 
             <div class="progress-bar">
@@ -487,7 +506,7 @@
                     day2: 'दिन 2 - खाद और काम',
                     weekly: 'साप्ताहिक हाल'
                 },
-                successMessage: '✅ आपका जवाब सफलतापूर्वक सहेजा गया है!',
+                successMessage: '✅ आपका जवाब सफलतापूर्वक सहेजा गया है! धन्यवाद विमल!',
                 saveButton: '💾 आज का प्रविष्टि सहेजें',
                 savedMessage: '✅ सहेजा गया!',
                 footer: 'रोज़ाना ट्रैक करें • बेहतर उगाएं • अधिक फसल प्राप्त करें 🌱',
@@ -1125,6 +1144,11 @@
         }
 
         async function saveProgress() {
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.classList.add('loading');
+            saveBtn.textContent = 'सहेजा जा रहा है...';
+
             const { questions, type } = getCurrentQuestions();
             const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().split('T')[0];
             const questionType = type === 'weekly' ? 'Weekly Review' : 
@@ -1137,6 +1161,9 @@
             if (!isValid) {
                 console.error('Question set mismatch');
                 alert('त्रुटि: प्रश्न सेट में असंगति है।');
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('loading');
+                saveBtn.textContent = translations.hindi.saveButton;
                 return;
             }
 
@@ -1164,11 +1191,17 @@
                                 } else {
                                     console.error('Image upload failed:', result.error);
                                     alert('फोटो अपलोड करने में त्रुटि: ' + result.error);
+                                    saveBtn.disabled = false;
+                                    saveBtn.classList.remove('loading');
+                                    saveBtn.textContent = translations.hindi.saveButton;
                                     return;
                                 }
                             } catch (error) {
                                 console.error('Error uploading image:', error);
                                 alert('फोटो अपलोड करने में त्रुटि: ' + error.message);
+                                saveBtn.disabled = false;
+                                saveBtn.classList.remove('loading');
+                                saveBtn.textContent = translations.hindi.saveButton;
                                 return;
                             }
                         }
@@ -1217,6 +1250,9 @@
 
             if (Object.keys(compiledData.responses).length === 0) {
                 alert('कोई जवाब सहेजने के लिए नहीं है। कृपया कम से कम एक प्रश्न का उत्तर दें।');
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('loading');
+                saveBtn.textContent = translations.hindi.saveButton;
                 return;
             }
 
@@ -1243,8 +1279,8 @@
                     successMsg.classList.remove('show');
                 }, 3000);
 
-                const saveBtn = document.getElementById('saveBtn');
                 saveBtn.disabled = true;
+                saveBtn.classList.remove('loading');
                 saveBtn.textContent = translations.hindi.savedMessage;
                 setTimeout(() => {
                     saveBtn.disabled = false;
@@ -1265,6 +1301,9 @@
             } catch (error) {
                 console.error('Error saving responses:', error);
                 alert('डेटा सहेजने में त्रुटि: ' + error.message);
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('loading');
+                saveBtn.textContent = translations.hindi.saveButton;
             }
         }
 
