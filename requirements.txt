@@ -5,3 +5,5 @@ cloudinary
 python-dateutil
 gunicorn
 flask-cors
+apscheduler
+requests
