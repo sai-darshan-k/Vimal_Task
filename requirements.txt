@@ -4,3 +4,4 @@ python-dotenv
 cloudinary
 python-dateutil
 gunicorn
+flask-cors
