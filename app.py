@@ -36,7 +36,7 @@ CLOUDINARY_UPLOAD_PRESET = os.getenv('CLOUDINARY_UPLOAD_PRESET', 'smart_agri_pre
 
 # Initialize InfluxDB client
 influx_client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-write_api = influx_client.write_api(write_options=SYNCHRONOUS)  # Synchronous writes for immediate errors
+write_api = influx_client.write_api(write_options=SYNCHRONOUS)
 query_api = influx_client.query_api()
 
 # Expected English questions for validation (backend stores in English)
@@ -82,6 +82,10 @@ def serve_index():
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return app.send_static_file(filename)
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({'status': 'alive'}), 200
 
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
@@ -132,7 +136,7 @@ def save_responses():
         data = request.json
         date = data.get('date')
         question_type = data.get('type')
-        language = data.get('language', 'hindi')  # Default to Hindi
+        language = data.get('language', 'hindi')
         responses = data.get('responses')
         timestamp = data.get('timestamp')
 
@@ -172,8 +176,8 @@ def save_responses():
                 print(f"Skipping invalid question: {question}")
                 continue
                 
-            answer = str(response.get('answer', ''))  # Ensure string type
-            followup_text = str(response.get('followupText', ''))  # Ensure string type
+            answer = str(response.get('answer', ''))
+            followup_text = str(response.get('followupText', ''))
             photos_list = response.get('photos', [])
             
             if not answer and not followup_text and not photos_list:
@@ -214,7 +218,7 @@ def save_responses():
             # Build tags (simplify type tag to reduce cardinality)
             tag_parts = []
             tag_parts.append(f"date={escape_tag(date)}")
-            tag_parts.append(f"type={escape_tag(question_type.replace(' ', '_').replace('&', '_'))}")  # e.g., Day_2_Nutrients_Operations
+            tag_parts.append(f"type={escape_tag(question_type.replace(' ', '_').replace('&', '_'))}")
             tag_parts.append(f"language={escape_tag(language)}")
             tag_parts.append(f"question_id=q{index + 1}")
 
@@ -275,7 +279,6 @@ def save_responses():
         traceback.print_exc()
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
-# New endpoint to debug rejections
 @app.route('/check_rejections', methods=['GET'])
 def check_rejections():
     try:
