@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import WriteApi, SYNCHRONOUS
 from influxdb_client.client.query_api import QueryApi
@@ -15,6 +16,9 @@ from zoneinfo import ZoneInfo
 import traceback
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+# Enable CORS for all routes (allows browser-based pings from any origin)
+CORS(app)
 
 # Load environment variables
 load_dotenv()
@@ -85,7 +89,19 @@ def serve_static(filename):
 
 @app.route('/ping', methods=['GET'])
 def ping():
-    return jsonify({'status': 'alive'}), 200
+    """Keep-alive endpoint for Render - returns simple status to prevent spin-down"""
+    print(f"Ping received at {datetime.now().isoformat()} - Instance is alive!")
+    return jsonify({
+        'status': 'alive', 
+        'timestamp': datetime.now().isoformat(),
+        'message': 'Farm Tracker API is running'
+    }), 200
+
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """Health check endpoint for external monitoring services like UptimeRobot"""
+    print(f"Health check received at {datetime.now().isoformat()}")
+    return jsonify({'status': 'healthy'}), 200
 
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
@@ -117,6 +133,7 @@ def upload_image():
                 folder="smart_agri"
             )
             image_url = result['secure_url']
+            print(f"Image uploaded successfully: {image_url}")
         except Exception as e:
             print(f"Cloudinary upload error: {str(e)}")
             return jsonify({'error': f'Failed to upload to Cloudinary: {str(e)}'}), 500

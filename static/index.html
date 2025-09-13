@@ -436,19 +436,6 @@
             margin-top: 5px;
         }
 
-        .keep-alive-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            z-index: 1000;
-            display: none;
-        }
-
         @media (max-width: 480px) {
             .container {
                 margin: 0;
@@ -473,19 +460,10 @@
             .option-image {
                 height: 100px;
             }
-
-            .keep-alive-status {
-                top: 5px;
-                right: 5px;
-                font-size: 10px;
-                padding: 3px 6px;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="keep-alive-status" id="keepAliveStatus">सर्वर सक्रिय...</div>
-
     <div class="container">
         <div class="header">
             <h1>🌾 फार्म ट्रैकर</h1>
@@ -519,45 +497,6 @@
     </div>
 
     <script>
-        // Keep-alive functionality
-        async function pingServer() {
-            try {
-                const response = await fetch('/ping', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                const statusEl = document.getElementById('keepAliveStatus');
-                if (response.ok) {
-                    statusEl.textContent = `सर्वर सक्रिय: ${new Date().toLocaleTimeString('hi-IN')}`;
-                    statusEl.style.background = 'rgba(76, 175, 80, 0.8)';
-                } else {
-                    statusEl.textContent = 'सर्वर समस्या';
-                    statusEl.style.background = 'rgba(244, 67, 54, 0.8)';
-                }
-                statusEl.style.display = 'block';
-                setTimeout(() => {
-                    statusEl.style.display = 'none';
-                }, 5000);
-            } catch (error) {
-                console.error('Ping failed:', error);
-                const statusEl = document.getElementById('keepAliveStatus');
-                statusEl.textContent = 'सर्वर कनेक्शन समस्या';
-                statusEl.style.background = 'rgba(244, 67, 54, 0.8)';
-                statusEl.style.display = 'block';
-                setTimeout(() => {
-                    statusEl.style.display = 'none';
-                }, 5000);
-            }
-        }
-
-        // Start keep-alive pings every 2 minutes
-        setInterval(pingServer, 120000);
-        // Initial ping on load
-        setTimeout(pingServer, 1000);
-
         // Hindi translations only
         const translations = {
             hindi: {
