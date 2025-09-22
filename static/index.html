@@ -368,6 +368,22 @@
             animation: slideDown 0.3s ease;
         }
 
+        .health-score {
+            background: #e6f3ff;
+            color: #004085;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        .health-score.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
         .footer {
             text-align: center;
             padding: 20px;
@@ -486,6 +502,10 @@
                 <!-- All questions will be loaded here -->
             </div>
 
+            <div class="health-score" id="healthScore">
+                फसल स्वास्थ्य स्कोर: <span id="scoreValue">0</span>/100
+            </div>
+
             <button class="save-btn" id="saveBtn" onclick="saveProgress()">
                 💾 आज का प्रविष्टि सहेजें
             </button>
@@ -506,11 +526,12 @@
                     day2: 'दिन 2 - खाद और काम',
                     weekly: 'साप्ताहिक हाल'
                 },
-                successMessage: '✅ आपका जवाब सफलतापूर्वक सहेजा गया है! धन्यवाद विमल!',
+                successMessage: '✅ आपका जवाब सफलतापूर्वक सहेजा गया है! धन्यवाद वि�मल!',
                 saveButton: '💾 आज का प्रविष्टि सहेजें',
                 savedMessage: '✅ सहेजा गया!',
                 footer: 'रोज़ाना ट्रैक करें • बेहतर उगाएं • अधिक फसल प्राप्त करें 🌱',
                 speechNotSupported: 'आपके ब्राउज़र में वॉइस इनपुट नहीं चलता',
+                healthScoreLabel: 'फसल स्वास्थ्य स्कोर',
                 day1Questions: [
                     { 
                         text: 'आज पानी दिया?', 
@@ -518,7 +539,9 @@
                         emoji: '💧', 
                         audio: 'day1_q1.mp3',
                         englishText: 'Did you water the plants today?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Critical for crop health
+                        scoring: { 'Yes': 3, 'No': 0 }
                     },
                     { 
                         text: 'आज बारिश हुई?', 
@@ -526,7 +549,9 @@
                         emoji: '🌧️', 
                         audio: 'day1_q2.mp3',
                         englishText: 'Did it rain today on your field?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'average', // Helpful but not critical
+                        scoring: { 'Yes': 2, 'No': 0 }
                     },
                     { 
                         text: 'कीटनाशक/दवाई का छिड़काव किया?', 
@@ -534,7 +559,9 @@
                         emoji: '🔬', 
                         audio: 'day1_q3.mp3',
                         englishText: 'Did you spray pesticide or fungicide?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'average', // Depends on pest pressure
+                        scoring: { 'Yes': 2, 'No': 0 }
                     },
                     { 
                         text: 'खरपतवार निकाला?', 
@@ -542,7 +569,9 @@
                         emoji: '🌿', 
                         audio: 'day1_q4.mp3',
                         englishText: 'Did you remove weeds today?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'average', // Important for competition
+                        scoring: { 'Yes': 2, 'No': 0 }
                     },
                     { 
                         text: 'पौधा ठीक दिख रहा है?', 
@@ -552,7 +581,9 @@
                         photo: 'no', 
                         audio: 'day1_q5.mp3',
                         englishText: 'Is the plant healthy today (your view)?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Direct indicator of health
+                        scoring: { 'Yes': 3, 'No': 0 }
                     },
                     { 
                         text: 'आज मौसम खराब रहा (तेज़ हवा/ओले/गर्मी)?', 
@@ -560,7 +591,9 @@
                         emoji: '⛈️', 
                         audio: 'day1_q6.mp3',
                         englishText: 'Any unusual weather (wind, hail, storm, excess heat)?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Weather impacts health
+                        scoring: { 'Yes': 0, 'No': 3 } // Reverse scoring
                     }
                 ],
                 day2Questions: [
@@ -573,7 +606,9 @@
                         photo: 'followup', 
                         audio: 'day2_q1.mp3',
                         englishText: 'Did you apply fertilizer today?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Critical for growth
+                        scoring: { 'Yes': 3, 'No': 0 }
                     },
                     { 
                         text: 'कोई कीड़ा या बीमारी दिखी?', 
@@ -584,7 +619,9 @@
                         voice: true, 
                         audio: 'day2_q2.mp3',
                         englishText: 'Did you notice any pests or disease symptoms?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Critical for health
+                        scoring: { 'Yes': 0, 'No': 3 } // Reverse scoring
                     },
                     { 
                         text: 'पत्तियों में दिक्कत (धब्बे/पीली/मुड़ी) दिखी?', 
@@ -594,7 +631,9 @@
                         photo: 'yes', 
                         audio: 'day2_q3.mp3',
                         englishText: 'Are the leaves showing any issues (spots, yellowing, curling)?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Direct health indicator
+                        scoring: { 'Yes': 0, 'No': 3 } // Reverse scoring
                     },
                     { 
                         text: 'आज खेत में किसने काम किया?', 
@@ -602,7 +641,9 @@
                         emoji: '👨‍🌾', 
                         audio: 'day2_q4.mp3',
                         englishText: 'Did you or any labor work in the field today?',
-                        englishOptions: ['Self', 'Labor', 'No one']
+                        englishOptions: ['Self', 'Labor', 'No one'],
+                        importance: 'average', // Indicates activity
+                        scoring: { 'Self': 2, 'Labor': 2, 'No one': 0 }
                     },
                     { 
                         text: 'सिंचाई/बिजली की दिक्कत हुई?', 
@@ -612,7 +653,9 @@
                         voice: true, 
                         audio: 'day2_q5.mp3',
                         englishText: 'Did you face any irrigation or electricity issues?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Critical for operations
+                        scoring: { 'Yes': 0, 'No': 3 } // Reverse scoring
                     },
                     { 
                         text: 'आज का काम पूरा हुआ?', 
@@ -620,7 +663,9 @@
                         emoji: '✅', 
                         audio: 'day2_q6.mp3',
                         englishText: 'Did you complete the planned task for today?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'average', // Indicates progress
+                        scoring: { 'Yes': 2, 'No': 0 }
                     },
                     { 
                         text: 'कोई और दिक्कत/नोट?', 
@@ -632,7 +677,9 @@
                         photo: true, 
                         audio: 'day2_q7.mp3',
                         englishText: 'Any other field observation or issue today?',
-                        englishOptions: []
+                        englishOptions: [],
+                        importance: 'low', // Supplementary
+                        scoring: { 'response': 1 } // 1 point if any text or photo
                     }
                 ],
                 weeklyQuestions: [
@@ -649,7 +696,9 @@
                         photo: true, 
                         audio: 'weekly_q1.mp3',
                         englishText: 'What stage is the crop in now?',
-                        englishOptions: ['Germination', 'Vegetative', 'Flowering', 'Fruiting']
+                        englishOptions: ['Germination', 'Vegetative', 'Flowering', 'Fruiting'],
+                        importance: 'average', // Indicates progress
+                        scoring: { 'Germination': 1, 'Vegetative': 1.5, 'Flowering': 2, 'Fruiting': 2 }
                     },
                     { 
                         text: 'फसल बढ़िया बढ़ रही है?', 
@@ -657,7 +706,9 @@
                         emoji: '📊', 
                         audio: 'weekly_q2.mp3',
                         englishText: 'Is the crop growing as expected?',
-                        englishOptions: ['Yes', 'Slight Delay', 'Poor']
+                        englishOptions: ['Yes', 'Slight Delay', 'Poor'],
+                        importance: 'high', // Key health indicator
+                        scoring: { 'Yes': 3, 'Slight Delay': 1.5, 'Poor': 0 }
                     },
                     { 
                         text: 'उपज उम्मीद जैसी लगे?', 
@@ -665,7 +716,9 @@
                         emoji: '🎯', 
                         audio: 'weekly_q3.mp3',
                         englishText: 'Is your expected harvest yield still realistic?',
-                        englishOptions: ['Yes', 'Slightly Lower', 'Much Lower']
+                        englishOptions: ['Yes', 'Slightly Lower', 'Much Lower'],
+                        importance: 'high', // Critical for planning
+                        scoring: { 'Yes': 3, 'Slightly Lower': 1.5, 'Much Lower': 0 }
                     },
                     { 
                         text: 'भंडारण या बिक्री की योजना?', 
@@ -673,7 +726,9 @@
                         emoji: '📦', 
                         audio: 'weekly_q4.mp3',
                         englishText: 'Have you planned for harvest storage or sale?',
-                        englishOptions: ['Sale', 'Storage', 'Not yet']
+                        englishOptions: ['Sale', 'Storage', 'Not yet'],
+                        importance: 'low', // Planning aspect
+                        scoring: { 'Sale': 1, 'Storage': 1, 'Not yet': 0 }
                     },
                     { 
                         text: 'इस हफ्ते खेत की मरम्मत (बाड़/जाल/खंभा) करनी पड़ी?', 
@@ -682,7 +737,9 @@
                         photo: 'yes', 
                         audio: 'weekly_q5.mp3',
                         englishText: 'Did any crop support (fence, net, stakes) need fixing this week?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'average', // Maintenance
+                        scoring: { 'Yes': 2, 'No': 0 }
                     },
                     { 
                         text: 'सलाह किससे ली?', 
@@ -690,7 +747,9 @@
                         emoji: '💬', 
                         audio: 'weekly_q6.mp3',
                         englishText: 'Did you consult anyone for crop advice?',
-                        englishOptions: ['Agronomist', 'Dealer', 'Neighbor', 'None']
+                        englishOptions: ['Agronomist', 'Dealer', 'Neighbor', 'None'],
+                        importance: 'low', // Supplementary
+                        scoring: { 'Agronomist': 1, 'Dealer': 1, 'Neighbor': 0.5, 'None': 0 }
                     },
                     { 
                         text: 'हमारी टीम से मदद चाहिए?', 
@@ -700,7 +759,9 @@
                         voice: true, 
                         audio: 'weekly_q7.mp3',
                         englishText: 'Do you want expert help or callback from our team?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'low', // Supplementary
+                        scoring: { 'Yes': 1, 'No': 0 }
                     },
                     { 
                         text: 'जानवर/पक्षी से नुकसान हुआ?', 
@@ -709,7 +770,9 @@
                         photo: 'yes', 
                         audio: 'weekly_q8.mp3',
                         englishText: 'Any wildlife/cattle/animal damage this week?',
-                        englishOptions: ['Yes', 'No']
+                        englishOptions: ['Yes', 'No'],
+                        importance: 'high', // Critical for yield
+                        scoring: { 'Yes': 0, 'No': 3 } // Reverse scoring
                     }
                 ]
             }
@@ -721,19 +784,25 @@
                 hindiText: q.text,
                 englishText: q.englishText,
                 options: q.englishOptions,
-                index: i
+                index: i,
+                importance: q.importance,
+                scoring: q.scoring
             })),
             day2: translations.hindi.day2Questions.map((q, i) => ({
                 hindiText: q.text,
                 englishText: q.englishText,
                 options: q.englishOptions,
-                index: i
+                index: i,
+                importance: q.importance,
+                scoring: q.scoring
             })),
             weekly: translations.hindi.weeklyQuestions.map((q, i) => ({
                 hindiText: q.text,
                 englishText: q.englishText,
                 options: q.englishOptions,
-                index: i
+                index: i,
+                importance: q.importance,
+                scoring: q.scoring
             }))
         };
 
@@ -854,6 +923,7 @@
                             });
                             renderPhotos(questionIndex);
                             updateProgress();
+                            updateCropHealthScore();
                             resolve();
                         };
                         reader.readAsDataURL(file);
@@ -888,6 +958,7 @@
                 responses[questionIndex].photos.splice(photoIndex, 1);
                 renderPhotos(questionIndex);
                 updateProgress();
+                updateCropHealthScore();
             }
         }
 
@@ -937,6 +1008,59 @@
             document.querySelector('.footer').textContent = translations.hindi.footer;
             document.getElementById('successMessage').textContent = translations.hindi.successMessage;
             document.getElementById('saveBtn').textContent = translations.hindi.saveButton;
+            document.getElementById('healthScore').innerHTML = `${translations.hindi.healthScoreLabel}: <span id="scoreValue">0</span>/100`;
+        }
+
+        function calculateCropHealthScore() {
+            const { questions, type } = getCurrentQuestions();
+            const englishQuestionSet = englishQuestions[type];
+            let totalScore = 0;
+            let maxScore = 0;
+
+            questions.forEach((question, index) => {
+                const response = responses[index];
+                const scoring = question.scoring;
+                const importance = question.importance;
+
+                // Calculate maximum possible score based on importance
+                if (importance === 'high') {
+                    maxScore += 3;
+                } else if (importance === 'average') {
+                    maxScore += 2;
+                } else if (importance === 'low') {
+                    maxScore += 1;
+                }
+
+                if (response) {
+                    if (question.type === 'text') {
+                        // For text questions, award points if there's a response or photos
+                        if ((response.text || response.followupText || (response.photos && response.photos.length > 0)) && scoring['response']) {
+                            totalScore += scoring['response'];
+                        }
+                    } else if (response.option) {
+                        // Map Hindi option to English for scoring
+                        const hindiOptionIndex = question.options.indexOf(response.option);
+                        if (hindiOptionIndex !== -1) {
+                            const englishOption = englishQuestionSet[index].options[hindiOptionIndex];
+                            if (scoring[englishOption]) {
+                                totalScore += scoring[englishOption];
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Convert to percentage (out of 100)
+            const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+            return { score: scorePercentage, totalScore, maxScore };
+        }
+
+        function updateCropHealthScore() {
+            const { score } = calculateCropHealthScore();
+            const scoreElement = document.getElementById('scoreValue');
+            const healthScoreDiv = document.getElementById('healthScore');
+            scoreElement.textContent = score;
+            healthScoreDiv.classList.add('show');
         }
 
         function renderAllQuestions() {
@@ -959,7 +1083,6 @@
                 if (question.type === 'text') {
                     html += `
                         <div class="text-only-input">
-                           
                             ${question.followup ? `
                                 <div class="followup show" id="followup_${index}">
                                     <textarea class="text-input" placeholder="कृपया विवरण प्रदान करें..." id="followupText_${index}" oninput="saveResponse(${index}, 'followupText', this.value)"></textarea>
@@ -971,7 +1094,6 @@
                                     ` : ''}
                                 </div>
                             ` : ''}
- 
                         </div>
                     `;
                 } else {
@@ -1046,6 +1168,7 @@
 
             container.innerHTML = html;
             updateProgress();
+            updateCropHealthScore();
         }
 
         function selectOption(questionIndex, option, element) {
@@ -1114,6 +1237,7 @@
             }
 
             updateProgress();
+            updateCropHealthScore();
         }
 
         function saveResponse(questionIndex, type, value) {
@@ -1122,6 +1246,7 @@
             }
             responses[questionIndex][type] = value;
             updateProgress();
+            updateCropHealthScore();
         }
 
         function updateProgress() {
@@ -1154,6 +1279,7 @@
             const questionType = type === 'weekly' ? 'Weekly Review' : 
                                type === 'day1' ? 'Day 1 - Watering & Health' : 'Day 2 - Nutrients & Operations';
             const timestamp = new Date().toISOString();
+            const { score: cropHealthScore } = calculateCropHealthScore();
 
             // Validate question set
             const englishQuestionSet = englishQuestions[type];
@@ -1215,6 +1341,7 @@
                 type: questionType,
                 language: 'hindi',
                 timestamp: timestamp,
+                crop_health_score: cropHealthScore,
                 responses: {}
             };
 
@@ -1344,7 +1471,7 @@
                 
                 renderAllQuestions();
                 updateProgress();
-
+                updateCropHealthScore();
                 Object.entries(responses).forEach(([index, response]) => {
                     if (response.option) {
                         if (questions[index] && questions[index].images) {

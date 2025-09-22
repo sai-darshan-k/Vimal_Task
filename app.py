@@ -176,6 +176,7 @@ def save_responses():
         question_type = data.get('type')
         language = data.get('language', 'hindi')
         responses = data.get('responses')
+        crop_health_score = data.get('crop_health_score')
         timestamp = data.get('timestamp')
 
         if not responses:
@@ -183,6 +184,9 @@ def save_responses():
         if not question_type:
             print(f"Error: question_type is None or missing")
             return jsonify({'error': 'question_type is missing or invalid'}), 400
+        if crop_health_score is None:
+            print(f"Error: crop_health_score is missing")
+            return jsonify({'error': 'crop_health_score is missing'}), 400
 
         # Validate questions against expected English questions
         received_questions = list(responses.keys())
@@ -194,7 +198,7 @@ def save_responses():
         if missing_questions:
             print(f"Warning: Some received questions don't match expected: {missing_questions}")
 
-        print(f"Received responses: date={date}, type={question_type}, language={language}, timestamp={timestamp}")
+        print(f"Received responses: date={date}, type={question_type}, language={language}, timestamp={timestamp}, crop_health_score={crop_health_score}")
         print(f"Number of responses: {len(responses)}")
 
         # Convert ISO 8601 timestamp to Unix epoch nanoseconds
@@ -243,7 +247,7 @@ def save_responses():
             escaped_photos = json.dumps([{'url': url} for url in photos_urls]) if photos_urls else '[]'
             escaped_photos = escape_field(escaped_photos)
 
-            # Build fields (all strings for consistency)
+            # Build fields (all strings for consistency, except crop_health_score)
             fields = []
             if escaped_answer:
                 fields.append(f'answer="{escaped_answer}"')
@@ -252,6 +256,8 @@ def save_responses():
             if photos_urls:
                 fields.append(f'photos="{escaped_photos}"')
             fields.append(f'question="{escaped_question}"')
+            if index == 0:  # Add crop_health_score to the first record
+                fields.append(f'crop_health_score={crop_health_score}')
 
             # Build tags (simplify type tag to reduce cardinality)
             tag_parts = []
