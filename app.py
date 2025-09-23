@@ -14,8 +14,6 @@ from datetime import datetime
 import dateutil.parser
 from zoneinfo import ZoneInfo
 import traceback
-import requests
-from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -47,22 +45,6 @@ query_api = influx_client.query_api()
 
 # Get the Render app URL from environment variable or fallback to known URL
 RENDER_APP_URL = os.getenv('RENDER_EXTERNAL_URL', 'https://vimal-farm.onrender.com')
-
-# APScheduler setup for keep-alive pings
-def ping_self():
-    """Send a GET request to the /healthz endpoint to keep the Render instance alive"""
-    try:
-        response = requests.get(f"{RENDER_APP_URL}/healthz", timeout=5)
-        if response.status_code == 200:
-            print(f"Self-ping successful at {datetime.now().isoformat()}: {response.json()}")
-        else:
-            print(f"Self-ping failed at {datetime.now().isoformat()}: Status {response.status_code}")
-    except Exception as e:
-        print(f"Self-ping error at {datetime.now().isoformat()}: {str(e)}")
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(ping_self, 'interval', minutes=5)  # Ping every 5 minutes
-scheduler.start()
 
 # Expected English questions for validation (backend stores in English)
 EXPECTED_QUESTIONS = {
@@ -120,7 +102,7 @@ def ping():
 
 @app.route('/healthz', methods=['GET'])
 def healthz():
-    """Health check endpoint for external monitoring services and self-pinging"""
+    """Health check endpoint for external monitoring services"""
     print(f"Health check received at {datetime.now().isoformat()}")
     return jsonify({'status': 'healthy'}), 200
 
@@ -352,7 +334,4 @@ if __name__ == '__main__':
     print("Starting Farm Tracker API...")
     print(f"Serving static files from: {os.path.abspath('static')}")
     port = int(os.environ.get('PORT', 5000))
-    try:
-        app.run(host='0.0.0.0', port=port, debug=False)
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()  # Gracefully shutdown scheduler on app termination
+    app.run(host='0.0.0.0', port=port, debug=False)
