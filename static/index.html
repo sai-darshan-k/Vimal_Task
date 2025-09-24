@@ -901,40 +901,106 @@
             });
         }
 
-        async function handlePhotoUpload(input, questionIndex) {
-            const files = Array.from(input.files);
-            if (!files.length) return;
+async function handlePhotoUpload(input, questionIndex) {
+    const files = Array.from(input.files);
+    if (!files.length) return;
 
-            if (!responses[questionIndex]) {
-                responses[questionIndex] = {};
-            }
-            if (!responses[questionIndex].photos) {
-                responses[questionIndex].photos = [];
-            }
+    if (!responses[questionIndex]) {
+        responses[questionIndex] = {};
+    }
+    if (!responses[questionIndex].photos) {
+        responses[questionIndex].photos = [];
+    }
 
-            for (const file of files) {
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    await new Promise(resolve => {
-                        reader.onload = function(e) {
-                            const imageData = e.target.result;
-                            responses[questionIndex].photos.push({
-                                data: imageData
-                            });
-                            renderPhotos(questionIndex);
-                            updateProgress();
-                            updateCropHealthScore();
-                            resolve();
-                        };
-                        reader.readAsDataURL(file);
-                    });
-                    console.log(`Photo added for q${questionIndex + 1}: ${responses[questionIndex].photos.length} photos now`);
-                }
-            }
+    const targetSizeKB = 500; // Target size: 500KB
+    const targetSizeBytes = targetSizeKB * 1024;
 
-            input.value = '';
+    for (const file of files) {
+        if (file.type.startsWith('image/')) {
+            try {
+                const resizedImageData = await resizeImage(file, targetSizeBytes);
+                responses[questionIndex].photos.push({
+                    data: resizedImageData
+                });
+                renderPhotos(questionIndex);
+                updateProgress();
+                updateCropHealthScore();
+                console.log(`Photo added for q${questionIndex + 1}: ${responses[questionIndex].photos.length} photos now`);
+            } catch (error) {
+                console.error('Error resizing image:', error);
+                alert('फोटो को रिसाइज़ करने में त्रुटि: ' + error.message);
+            }
         }
+    }
 
+    input.value = '';
+}
+
+// Helper function to resize image
+async function resizeImage(file, targetSizeBytes) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            img.src = e.target.result;
+        };
+
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            let width = img.width;
+            let height = img.height;
+            let quality = 0.9; // Start with 90% quality
+            const minQuality = 0.5; // Minimum quality threshold
+            let dataUrl;
+
+            // Calculate initial scaling factor to reduce dimensions if needed
+            const maxDimension = 1920; // Limit to 1920px to avoid excessive memory use
+            const scaleFactor = Math.min(1, maxDimension / Math.max(width, height));
+
+            // Function to convert canvas to base64 and check size
+            const tryResize = () => {
+                canvas.width = width * scaleFactor;
+                canvas.height = height * scaleFactor;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                dataUrl = canvas.toDataURL('image/jpeg', quality);
+                const binary = atob(dataUrl.split(',')[1]);
+                const size = binary.length;
+
+                if (size <= targetSizeBytes || quality <= minQuality) {
+                    resolve(dataUrl);
+                } else {
+                    // Reduce quality by 0.1 and try again
+                    quality -= 0.1;
+                    if (quality >= minQuality) {
+                        setTimeout(tryResize, 0);
+                    } else {
+                        // If quality is too low, reduce dimensions further
+                        width *= 0.9;
+                        height *= 0.9;
+                        quality = 0.9; // Reset quality
+                        setTimeout(tryResize, 0);
+                    }
+                }
+            };
+
+            tryResize();
+        };
+
+        img.onerror = function() {
+            reject(new Error('Failed to load image'));
+        };
+
+        reader.onerror = function() {
+            reject(new Error('Failed to read file'));
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
         function renderPhotos(questionIndex) {
             const container = document.getElementById(`photos_${questionIndex}`);
             if (!container || !responses[questionIndex]?.photos) return;
